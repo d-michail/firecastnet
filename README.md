@@ -1,18 +1,23 @@
 
 # FireCastNet
 
-Uses Lightning CLI and support multiple models. Configuration files are located in `configs/`.
+Uses Lightning CLI and supports multiple models. Configuration files are located in `configs/`.
 
 ## Classification
 
-In order to run for classificatio:
+In order to run for classification:
+
+```
+ main.py fit --model FireCastNet --config config
+```
+
+Other models can be run using:
 
 ```
 python main.py fit --model GRU --config configs/gru-config.yaml
 python main.py fit --model ConvGRU --config configs/conv-gru-config.yaml
 python main.py fit --model ConvLSTM --config configs/conv-lstm-config.yaml
 python main.py fit --model UTAE --config configs/utae-config.yaml
-python main.py fit --model FireCastNet --config configs/config.yaml
 ```
 
 ## Regression
