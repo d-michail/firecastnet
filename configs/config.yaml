@@ -61,7 +61,7 @@ trainer:
 model:
   class_path: FireCastNet
   init_args:
-    icospheres_graph_path: icospheres/icospheres_0_1_2_3_4_5.json.gz
+    icospheres_graph_path: icospheres/icospheres_0_1_2_3_4_5_6.json.gz
     sp_res: 0.250
     max_lat: 89.875
     min_lat: -89.875
@@ -75,10 +75,10 @@ model:
     embed_cube_time: 12
     embed_cube_dim: 64
     embed_cube_vit_patch_size: 36
-    embed_cube_vit_dim: 128
+    embed_cube_vit_dim: 64
+    embed_cube_vit_mlp_dim: 64
     embed_cube_vit_depth: 1
     embed_cube_vit_heads: 4
-    embed_cube_vit_mlp_dim: 128
     embed_cube_sp_res: 1.0
     embed_cube_max_lat: 89.5
     embed_cube_min_lat: -89.5
@@ -90,7 +90,7 @@ model:
     input_dim_edges: 4
     processor_layers: 12
     hidden_layers: 1
-    hidden_dim: 128
+    hidden_dim: 64
     aggregation: sum
     norm_type: LayerNorm
     do_concat_trick: false
@@ -143,7 +143,7 @@ data:
   time_dim_overlap: null
   task: classification
   batch_size: 1
-  num_workers: 10
+  num_workers: 4
   pin_memory: false
   load_cube_in_memory: false
   train_random_sample: null
