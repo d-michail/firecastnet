@@ -100,9 +100,10 @@ data:
   target_var: gwis_ba
   target_shift: 16
   target_var_per_area: false
-  timeseries_weeks: 36
-  lat_dim: 48 
-  lon_dim: 48
+  target_var_log_process: false
+  timeseries_weeks: 12
+  lat_dim: 64 
+  lon_dim: 64
   lat_dim_overlap: null
   lon_dim_overlap: null
   time_dim_overlap: null  
@@ -112,5 +113,5 @@ data:
   pin_memory: false
   load_cube_in_memory: false
   train_random_sample: null
-  mean_std_dict_prefix: "cube1d"
+  mean_std_dict_prefix: "cube"
 ckpt_path: null

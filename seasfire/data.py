@@ -35,6 +35,7 @@ class SeasFireDataModule(L.LightningDataModule):
         target_var="gwis_ba",
         target_shift=1,
         target_var_per_area=False,
+        target_var_log_process=False,
         timeseries_weeks=1,
         lat_dim=None,
         lon_dim=None,
@@ -141,6 +142,8 @@ class SeasFireDataModule(L.LightningDataModule):
             logger.info("Converting area in hectars")
             self._cube["area"] = self._cube["area"] / 10000.0
 
+        self._target_var_log_process = target_var_log_process
+
         self._static_vars = static_vars
         for static_v in static_vars:
             logger.info(
@@ -176,6 +179,7 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._target_var,
                 self._target_shift,
                 self._target_var_per_area,
+                self._target_var_log_process,
                 self._timeseries_weeks,
                 "train",
                 self._lat_dim,
@@ -203,6 +207,7 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._target_var,
                 self._target_shift,
                 self._target_var_per_area,
+                self._target_var_log_process,
                 self._timeseries_weeks,
                 "val",
                 self._lat_dim,
@@ -260,6 +265,7 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._target_var,
                 self._target_shift,
                 self._target_var_per_area,
+                self._target_var_log_process,
                 self._timeseries_weeks,
                 "test",
                 self._lat_dim,
@@ -359,6 +365,7 @@ def sample_dataset(
     target_var,
     target_shift,
     target_var_per_area,
+    target_var_log_process,
     timeseries_weeks,
     split,
     dim_lat,
@@ -381,6 +388,10 @@ def sample_dataset(
     if target_var_per_area:
         logger.info("Converting target to target per area")
         ds[target_var] = ds[target_var] / ds["area"]
+
+    if target_var_log_process: 
+        logger.info("Computing logarithm of target var")
+        ds[target_var] = np.log1p(ds[target_var])
 
     oci_ds = None
     if oci_enabled and len(oci_input_vars) > 0:
