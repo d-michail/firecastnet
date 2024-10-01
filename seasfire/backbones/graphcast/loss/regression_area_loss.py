@@ -82,3 +82,53 @@ class CellAreaWeightedL1LossFunction(nn.Module):
         loss = torch.mul(loss, self.area.to(invar))
         loss = loss.mean()
         return loss
+
+
+class CellAreaWeightedHuberLossFunction(nn.Module):
+    """Loss function with cell area weighting and Huber loss.
+
+    Parameters
+    ----------
+    area : torch.Tensor
+        Cell area with shape [H, W].
+    delta : float
+        Threshold parameter for Huber loss.
+    """
+
+    def __init__(self, area, delta=1.35):
+        super().__init__()
+        self.area = area
+        self.delta = delta
+
+    def forward(self, invar, outvar):
+        """
+        Implicit forward function which computes the loss given
+        a prediction and the corresponding targets.
+
+        Parameters
+        ----------
+        invar : torch.Tensor
+            prediction of shape [C, H, W].
+        outvar : torch.Tensor
+            target values of shape [C, H, W].
+        """
+
+        # Compute the absolute difference
+        diff = invar - outvar
+        abs_diff = torch.abs(diff)
+
+        # Compute the Huber loss
+        quadratic = torch.where(abs_diff <= self.delta, 0.5 * diff ** 2, torch.zeros_like(diff))
+        linear = torch.where(abs_diff > self.delta, self.delta * (abs_diff - 0.5 * self.delta), torch.zeros_like(diff))
+        huber_loss = quadratic + linear
+
+        # Mean over channels
+        huber_loss = huber_loss.mean(dim=(0))
+
+        # Apply area weighting
+        weighted_loss = torch.mul(huber_loss, self.area.to(invar))
+
+        # Mean over the spatial dimensions
+        final_loss = weighted_loss.mean()
+
+        return final_loss

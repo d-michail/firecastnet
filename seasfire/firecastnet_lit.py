@@ -18,6 +18,7 @@ from torchmetrics import (
 from .backbones.graphcast.loss.regression_area_loss import (
     CellAreaWeightedL1LossFunction,
     CellAreaWeightedMSELossFunction,
+    CellAreaWeightedHuberLossFunction,
 )
 from .backbones.graphcast.graph_utils import deg2rad, grid_cell_area
 from .backbones.graphcast.graph_cast_cube_net import GraphCastCubeNet
@@ -263,6 +264,8 @@ class FireCastNetLit(L.LightningModule):
         elif task == "regression":
             if regression_loss == "l1":
                 self._criterion = CellAreaWeightedL1LossFunction(self._area)
+            elif regression_loss == "huber":
+                self._criterion = CellAreaWeightedHuberLossFunction(self._area)
             else:
                 self._criterion = CellAreaWeightedMSELossFunction(self._area)
 
