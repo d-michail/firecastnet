@@ -94,7 +94,7 @@ model:
     aggregation: sum
     norm_type: LayerNorm
     do_concat_trick: false
-    regression_loss: mse
+    regression_loss: huber
     lr: 0.001
     weight_decay: 0.00000001
     optimizer_apex: false
