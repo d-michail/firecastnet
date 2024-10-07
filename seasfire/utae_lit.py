@@ -51,7 +51,8 @@ class UTAELit(L.LightningModule):
         self._task = task
 
         if task == "classification":
-            self._criterion = nn.BCEWithLogitsLoss()
+            # UTAE works with MSELoss here instead of BCEWithLogitsLoss
+            self._criterion = nn.MSELoss()
             self._metrics_names = ["auc", "f1", "auprc"]
             self._val_metrics = nn.ModuleList(
                 [
