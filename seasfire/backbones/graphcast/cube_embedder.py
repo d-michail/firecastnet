@@ -148,25 +148,26 @@ class CubeConv3dViT(torch.nn.Module):
         self.conv_3d = torch.nn.Conv3d(
             in_channels,
             out_channels,
-            kernel_size=kernel_size,
-            stride=kernel_size,
+            kernel_size=(kernel_size[0], 1, 1),
+            stride=(kernel_size[0], 1, 1),
         )
-        output_dim = (
+        self.output_dim = (
             grid_shape[0] // kernel_size[0],
             grid_shape[1] // kernel_size[1],
             grid_shape[2] // kernel_size[2],
         )
+        self.out_channels = out_channels
         self.vit = ViT(
             channels=out_channels,
             image_size=(grid_shape[1], grid_shape[2]),
             patch_size=patch_size,
-            num_classes=out_channels * output_dim[1] * output_dim[2],
+            num_classes=out_channels * self.output_dim[1] * self.output_dim[2],
             dim=dim,
             depth=depth,
             heads=heads,
             mlp_dim=mlp_dim,
         )
-        self.layer_norm = nn.LayerNorm(out_channels*output_dim[1]*output_dim[2])
+        self.layer_norm = nn.LayerNorm(out_channels*self.output_dim[1]*self.output_dim[2])
 
     def forward(
         self,
@@ -174,14 +175,13 @@ class CubeConv3dViT(torch.nn.Module):
     ) -> torch.FloatTensor:
         # [C0, T0, W0, H0] -> [C, T, W, H]
         o = self.conv_3d(x)
-        channels, timesteps, width, height = o.size()
         # [C, T, W, H] -> [T, C, W, H]
         o = o.permute(1, 0, 2, 3)
         # [T, C, W, H] -> [T, C*W*H]
         o = self.vit(o)
         o = self.layer_norm(o)
         # [T, C*W*H] -> [T, C, W, H]
-        o = o.reshape(timesteps, channels, width, height)
+        o = o.reshape(self.output_dim[0], self.out_channels, self.output_dim[1], self.output_dim[2])
         # [T, C, W, H] -> [C, T, W, H]
         o = o.permute(1, 0, 2, 3)
         return o

@@ -70,8 +70,8 @@ model:
     lat_lon_static_data: true
     timeseries_len: 12
     embed_cube: true
-    embed_cube_width: 1
-    embed_cube_height: 1
+    embed_cube_width: 4
+    embed_cube_height: 4
     embed_cube_time: 12
     embed_cube_dim: 64
     embed_cube_vit_patch_size: 36
