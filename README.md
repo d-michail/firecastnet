@@ -8,7 +8,7 @@ Uses Lightning CLI and supports multiple models. Configuration files are located
 In order to run for classification:
 
 ```
-main.py fit --model FireCastNet --config configs/config.yaml
+python main.py fit --model FireCastNet --config configs/config.yaml
 ```
 
 Other models can be run using:
