@@ -132,3 +132,4 @@ class CellAreaWeightedHuberLossFunction(nn.Module):
         final_loss = weighted_loss.mean()
 
         return final_loss
+
