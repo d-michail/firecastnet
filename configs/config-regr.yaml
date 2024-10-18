@@ -74,6 +74,7 @@ model:
     embed_cube_height: 1
     embed_cube_time: 12
     embed_cube_dim: 64
+    embed_cube_vit_disable: false    
     embed_cube_vit_patch_size: 36
     embed_cube_vit_dim: 64
     embed_cube_vit_mlp_dim: 64    

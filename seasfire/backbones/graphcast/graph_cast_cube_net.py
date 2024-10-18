@@ -37,6 +37,7 @@ class GraphCastCubeNet(torch.nn.Module):
         embed_cube_height: int = 4,
         embed_cube_time: int = 1,
         embed_cube_dim: int = 128,
+        embed_cube_vit_disable: bool = False,
         embed_cube_vit_patch_size: int = 36,
         embed_cube_vit_dim: int = 64,
         embed_cube_vit_depth: int = 1,
@@ -72,17 +73,25 @@ class GraphCastCubeNet(torch.nn.Module):
         self._upsample = None
 
         if embed_cube:
-            self._downsample = CubeConv3dViT(
-                input_dim_grid_nodes,
-                embed_cube_dim,
-                (timeseries_len, grid_width, grid_height),
-                (embed_cube_time, embed_cube_width, embed_cube_height),
-                patch_size=embed_cube_vit_patch_size,
-                dim=embed_cube_vit_dim,
-                depth=embed_cube_vit_depth,
-                heads=embed_cube_vit_heads,
-                mlp_dim=embed_cube_vit_mlp_dim,
-            )
+            if not embed_cube_vit_disable: 
+                self._downsample = CubeConv3dViT(
+                    input_dim_grid_nodes,
+                    embed_cube_dim,
+                    (timeseries_len, grid_width, grid_height),
+                    (embed_cube_time, embed_cube_width, embed_cube_height),
+                    patch_size=embed_cube_vit_patch_size,
+                    dim=embed_cube_vit_dim,
+                    depth=embed_cube_vit_depth,
+                    heads=embed_cube_vit_heads,
+                    mlp_dim=embed_cube_vit_mlp_dim,
+                )
+            else:
+                self._downsample = CubeConv3d(
+                    input_dim_grid_nodes,
+                    embed_cube_dim,
+                    (timeseries_len, grid_width, grid_height),
+                    (embed_cube_time, embed_cube_width, embed_cube_height),
+                )                
             if embed_cube_width == embed_cube_height:
                 upscale_factor = embed_cube_height
                 # Cout = Cin / upscale_factor^2
