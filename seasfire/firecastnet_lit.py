@@ -278,7 +278,7 @@ class FireCastNetLit(L.LightningModule):
                     MeanAbsoluteError(),
                     R2Score(),
                     SymmetricMeanAbsolutePercentageError(),
-                    CriticalSuccessIndex()
+                    CriticalSuccessIndex(0.5)
                 ]
             )
             self._test_metrics = nn.ModuleList(
@@ -287,7 +287,7 @@ class FireCastNetLit(L.LightningModule):
                     MeanAbsoluteError(),
                     R2Score(),
                     SymmetricMeanAbsolutePercentageError(),
-                    CriticalSuccessIndex()                    
+                    CriticalSuccessIndex(0.5)                    
                 ]
             )
         else:
