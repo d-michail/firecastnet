@@ -28,6 +28,7 @@ class SeasFireDataModule(L.LightningDataModule):
             "pop_dens",
         ],
         static_vars: List[str] = ["lsm"],
+        generate_only_positive_samples: bool = True,
         oci_enabled: bool = False,
         oci_input_vars: List[str] = [],
         oci_lag: int = 10,
@@ -120,6 +121,9 @@ class SeasFireDataModule(L.LightningDataModule):
                 )
             )
 
+        self._generate_only_positive_samples = generate_only_positive_samples
+        logger.info(f"Will only generate positive samples={generate_only_positive_samples}.")
+
         self._oci_enabled = oci_enabled
         logger.info(f"OCI variables enabled={oci_enabled}.")
 
@@ -187,8 +191,9 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._lat_dim_overlap,
                 self._lon_dim_overlap,
                 self._time_dim_overlap,
-                oci_lag=self._oci_lag,
+                generate_only_positive_samples=self._generate_only_positive_samples,
                 oci_enabled=self._oci_enabled,
+                oci_lag=self._oci_lag,
             )
 
             # Save mean std dict for normalization during inference time
@@ -215,8 +220,9 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._lat_dim_overlap,
                 self._lon_dim_overlap,
                 self._time_dim_overlap,
-                oci_lag=self._oci_lag,
+                generate_only_positive_samples=self._generate_only_positive_samples,
                 oci_enabled=self._oci_enabled,
+                oci_lag=self._oci_lag,
             )
             self._data_train = BatcherDataset(
                 self._cube.copy(),
@@ -249,7 +255,7 @@ class SeasFireDataModule(L.LightningDataModule):
 
         if stage == "test" or stage is None:
             if self._mean_std_dict is None:
-                logger.info("Loading ")
+                logger.info("Loading mean and std dictionary used during training")
                 with open(
                     f"{self._mean_std_dict_prefix}_mean_std_dict_{self._target_shift}.json",
                     "r",
@@ -273,8 +279,9 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._lat_dim_overlap,
                 self._lon_dim_overlap,
                 None,
-                oci_lag=self._oci_lag,
+                generate_only_positive_samples=self._generate_only_positive_samples,                
                 oci_enabled=self._oci_enabled,
+                oci_lag=self._oci_lag,
             )
 
             self._data_test = BatcherDataset(
@@ -374,6 +381,7 @@ def sample_dataset(
     dim_lon_overlap=None,
     dim_time_overlap=None,
     load_ds_in_memory=True,
+    generate_only_positive_samples=True,
     oci_enabled=False,
     oci_lag=10,
 ):
@@ -469,9 +477,13 @@ def sample_dataset(
     batches = []
     oci_batches = []
     for batch in tqdm.tqdm(bgen):
-        if batch[target_var].sum() > 0:
-            batches.append(batch)
+        is_positive = batch[target_var].sum() > 0
+        if is_positive: 
             n_pos += 1
+
+        if not generate_only_positive_samples or is_positive:
+            batches.append(batch)
+            n_batches += 1
 
             if oci_enabled and oci_ds is not None:
                 oci_batch = oci_ds.sel(
@@ -482,9 +494,9 @@ def sample_dataset(
                 )
                 oci_batches.append(oci_batch)
 
-        n_batches += 1
+
     logger.info("# of batches = {}".format(n_batches))
-    logger.info("# of positives = {}".format(n_pos))
+    logger.info("# of batches with positives = {}".format(n_pos))
 
     return batches, oci_batches, mean_std_dict
 

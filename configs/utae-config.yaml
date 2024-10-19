@@ -81,6 +81,7 @@ data:
   - pop_dens
   static_vars:
   - lsm
+  generate_only_positive_samples: true  
   oci_enabled: false
   oci_input_vars: 
   - oci_censo
