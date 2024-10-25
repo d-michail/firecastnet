@@ -419,10 +419,11 @@ class FireCastNetLit(L.LightningModule):
 
         # Prepare y in right format
         # [1, 1, T, W, H] -> [1, T, W, H]
-        batches = y.size(0)
-        if batches != 1:
-            raise ValueError("No support for batch size > 1")
-        y = y[0]
+        if y is not None:
+            batches = y.size(0)
+            if batches != 1:
+                raise ValueError("No support for batch size > 1")
+            y = y[0]
 
         return x, oci, y
 
@@ -489,24 +490,23 @@ class FireCastNetLit(L.LightningModule):
         self.evaluate(batch, "test")
 
     def predict_step(self, batch):
-        if len(batch) == 3:
-            x, oci, y = batch
-            x, oci, y = self._prepare_data(x, oci, y)
+        if len(batch) == 2:
+            x, oci = batch
+            x, oci, _ = self._prepare_data(x, oci, None)
             logits = self(x, oci)
         else:
-            x, y = batch
-            x, _, y = self._prepare_data(x, None, y)
+            x = batch
+            x, _, _ = self._prepare_data(x, None, None)
             logits = self(x)
 
         logits = logits[:, -1, :, :]
-        y = y[:, -1, :, :]
 
         if self._task == "classification":
             preds = torch.sigmoid(logits)
         else:
             preds = logits
 
-        return preds, y
+        return preds
 
     def configure_optimizers(self):
         optimizer = None
