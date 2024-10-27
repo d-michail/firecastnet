@@ -74,12 +74,16 @@ model:
     embed_cube_height: 4
     embed_cube_time: 12
     embed_cube_dim: 64
-    embed_cube_vit_disable: false
+    embed_cube_layer_norm: true
+    embed_cube_vit_enable: false
     embed_cube_vit_patch_size: 36
     embed_cube_vit_dim: 64
     embed_cube_vit_mlp_dim: 64
     embed_cube_vit_depth: 1
     embed_cube_vit_heads: 4
+    embed_cube_ltae_enable: false
+    embed_cube_ltae_num_heads: 4
+    embed_cube_ltae_d_k: 16
     embed_cube_sp_res: 1.0
     embed_cube_max_lat: 89.5
     embed_cube_min_lat: -89.5

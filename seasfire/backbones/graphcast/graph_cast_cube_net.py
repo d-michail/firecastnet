@@ -8,7 +8,7 @@ import torch.nn as nn
 from dgl import DGLGraph
 
 from .graph_cast_net import GraphCastNet
-from .cube_embedder import CubeConv3dViT, CubeConv3d
+from .cube_embedder import CubeConv3dViT, CubeConv3d, CubeConv2dLTAE
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +37,16 @@ class GraphCastCubeNet(torch.nn.Module):
         embed_cube_height: int = 4,
         embed_cube_time: int = 1,
         embed_cube_dim: int = 128,
-        embed_cube_vit_disable: bool = False,
+        embed_cube_layer_norm: bool = True,
+        embed_cube_vit_enable: bool = False,
         embed_cube_vit_patch_size: int = 36,
         embed_cube_vit_dim: int = 64,
         embed_cube_vit_depth: int = 1,
         embed_cube_vit_heads: int = 1,
         embed_cube_vit_mlp_dim: int = 64,
+        embed_cube_ltae_enable: bool = False,
+        embed_cube_ltae_num_heads: int = 4,
+        embed_cube_ltae_d_k: int = 16
     ):
         super(GraphCastCubeNet, self).__init__()
 
@@ -73,7 +77,7 @@ class GraphCastCubeNet(torch.nn.Module):
         self._upsample = None
 
         if embed_cube:
-            if not embed_cube_vit_disable: 
+            if embed_cube_vit_enable: 
                 self._downsample = CubeConv3dViT(
                     input_dim_grid_nodes,
                     embed_cube_dim,
@@ -84,6 +88,17 @@ class GraphCastCubeNet(torch.nn.Module):
                     depth=embed_cube_vit_depth,
                     heads=embed_cube_vit_heads,
                     mlp_dim=embed_cube_vit_mlp_dim,
+                    use_layer_norm=embed_cube_layer_norm,
+                )
+            elif embed_cube_ltae_enable: 
+                self._downsample = CubeConv2dLTAE(
+                    input_dim_grid_nodes,
+                    embed_cube_dim,
+                    (timeseries_len, grid_width, grid_height),
+                    (embed_cube_time, embed_cube_width, embed_cube_height),
+                    d_k=embed_cube_ltae_d_k,
+                    num_heads=embed_cube_ltae_num_heads,
+                    use_layer_norm=embed_cube_layer_norm,
                 )
             else:
                 self._downsample = CubeConv3d(
@@ -91,6 +106,7 @@ class GraphCastCubeNet(torch.nn.Module):
                     embed_cube_dim,
                     (timeseries_len, grid_width, grid_height),
                     (embed_cube_time, embed_cube_width, embed_cube_height),
+                    use_layer_norm=embed_cube_layer_norm,
                 )                
             if embed_cube_width == embed_cube_height:
                 upscale_factor = embed_cube_height

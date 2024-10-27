@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+
 # from vit_pytorch import ViT
 
 from ..utae import LTAE2d
@@ -12,13 +13,16 @@ from einops.layers.torch import Rearrange
 
 # helpers
 
+
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
 
+
 # classes
 
+
 class FeedForward(nn.Module):
-    def __init__(self, dim, hidden_dim, dropout = 0.):
+    def __init__(self, dim, hidden_dim, dropout=0.0):
         super().__init__()
         self.net = nn.Sequential(
             nn.LayerNorm(dim),
@@ -26,38 +30,40 @@ class FeedForward(nn.Module):
             nn.GELU(),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, dim),
-            nn.Dropout(dropout)
+            nn.Dropout(dropout),
         )
 
     def forward(self, x):
         return self.net(x)
 
+
 class Attention(nn.Module):
-    def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
+    def __init__(self, dim, heads=8, dim_head=64, dropout=0.0):
         super().__init__()
-        inner_dim = dim_head *  heads
+        inner_dim = dim_head * heads
         project_out = not (heads == 1 and dim_head == dim)
 
         self.heads = heads
-        self.scale = dim_head ** -0.5
+        self.scale = dim_head**-0.5
 
         self.norm = nn.LayerNorm(dim)
 
-        self.attend = nn.Softmax(dim = -1)
+        self.attend = nn.Softmax(dim=-1)
         self.dropout = nn.Dropout(dropout)
 
-        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias = False)
+        self.to_qkv = nn.Linear(dim, inner_dim * 3, bias=False)
 
-        self.to_out = nn.Sequential(
-            nn.Linear(inner_dim, dim),
-            nn.Dropout(dropout)
-        ) if project_out else nn.Identity()
+        self.to_out = (
+            nn.Sequential(nn.Linear(inner_dim, dim), nn.Dropout(dropout))
+            if project_out
+            else nn.Identity()
+        )
 
     def forward(self, x):
         x = self.norm(x)
 
-        qkv = self.to_qkv(x).chunk(3, dim = -1)
-        q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
+        qkv = self.to_qkv(x).chunk(3, dim=-1)
+        q, k, v = map(lambda t: rearrange(t, "b n (h d) -> b h n d", h=self.heads), qkv)
 
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
 
@@ -65,19 +71,24 @@ class Attention(nn.Module):
         attn = self.dropout(attn)
 
         out = torch.matmul(attn, v)
-        out = rearrange(out, 'b h n d -> b n (h d)')
+        out = rearrange(out, "b h n d -> b n (h d)")
         return self.to_out(out)
 
+
 class Transformer(nn.Module):
-    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
+    def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout=0.0):
         super().__init__()
         self.norm = nn.LayerNorm(dim)
         self.layers = nn.ModuleList([])
         for _ in range(depth):
-            self.layers.append(nn.ModuleList([
-                Attention(dim, heads = heads, dim_head = dim_head, dropout = dropout),
-                FeedForward(dim, mlp_dim, dropout = dropout)
-            ]))
+            self.layers.append(
+                nn.ModuleList(
+                    [
+                        Attention(dim, heads=heads, dim_head=dim_head, dropout=dropout),
+                        FeedForward(dim, mlp_dim, dropout=dropout),
+                    ]
+                )
+            )
 
     def forward(self, x):
         for attn, ff in self.layers:
@@ -86,19 +97,40 @@ class Transformer(nn.Module):
 
         return self.norm(x)
 
+
 class ViT(nn.Module):
-    def __init__(self, *, image_size, patch_size, num_classes, dim, depth, heads, mlp_dim, channels = 3, dim_head = 64, dropout = 0., emb_dropout = 0.):
+    def __init__(
+        self,
+        *,
+        image_size,
+        patch_size,
+        num_classes,
+        dim,
+        depth,
+        heads,
+        mlp_dim,
+        channels=3,
+        dim_head=64,
+        dropout=0.0,
+        emb_dropout=0.0
+    ):
         super().__init__()
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
 
-        assert image_height % patch_height == 0 and image_width % patch_width == 0, 'Image dimensions must be divisible by the patch size.'
+        assert (
+            image_height % patch_height == 0 and image_width % patch_width == 0
+        ), "Image dimensions must be divisible by the patch size."
 
         num_patches = (image_height // patch_height) * (image_width // patch_width)
         patch_dim = channels * patch_height * patch_width
 
         self.to_patch_embedding = nn.Sequential(
-            Rearrange('b c (h p1) (w p2) -> b (h w) (p1 p2 c)', p1 = patch_height, p2 = patch_width),
+            Rearrange(
+                "b c (h p1) (w p2) -> b (h w) (p1 p2 c)",
+                p1=patch_height,
+                p2=patch_width,
+            ),
             nn.LayerNorm(patch_dim),
             nn.Linear(patch_dim, dim),
             nn.LayerNorm(dim),
@@ -109,9 +141,11 @@ class ViT(nn.Module):
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
-        assert num_classes % num_patches == 0, 'Num of classes must be divisible by the number of patches.'
+        assert (
+            num_classes % num_patches == 0
+        ), "Num of classes must be divisible by the number of patches."
 
-        self.mlp_head = nn.Linear(dim, num_classes//num_patches)
+        self.mlp_head = nn.Linear(dim, num_classes // num_patches)
 
     def forward(self, img):
         x = self.to_patch_embedding(img)
@@ -124,10 +158,9 @@ class ViT(nn.Module):
 
         x = self.mlp_head(x)
 
-        x = rearrange(x, 'b p c -> b (p c)')
+        x = rearrange(x, "b p c -> b (p c)")
 
         return x
-
 
 
 class CubeConv3dViT(torch.nn.Module):
@@ -142,6 +175,7 @@ class CubeConv3dViT(torch.nn.Module):
         depth: int = 1,
         heads: int = 1,
         mlp_dim: int = 64,
+        use_layer_norm = True,
     ):
         super(CubeConv3dViT, self).__init__()
 
@@ -167,7 +201,11 @@ class CubeConv3dViT(torch.nn.Module):
             heads=heads,
             mlp_dim=mlp_dim,
         )
-        self.layer_norm = nn.LayerNorm(out_channels*self.output_dim[1]*self.output_dim[2])
+        self.layer_norm = (
+            nn.LayerNorm(out_channels * self.output_dim[1] * self.output_dim[2])
+            if use_layer_norm
+            else None
+        )
 
     def forward(
         self,
@@ -179,9 +217,17 @@ class CubeConv3dViT(torch.nn.Module):
         o = o.permute(1, 0, 2, 3)
         # [T, C, W, H] -> [T, C*W*H]
         o = self.vit(o)
-        o = self.layer_norm(o)
+
+        if self.layer_norm is not None:
+            o = self.layer_norm(o)
+
         # [T, C*W*H] -> [T, C, W, H]
-        o = o.reshape(self.output_dim[0], self.out_channels, self.output_dim[1], self.output_dim[2])
+        o = o.reshape(
+            self.output_dim[0],
+            self.out_channels,
+            self.output_dim[1],
+            self.output_dim[2],
+        )
         # [T, C, W, H] -> [C, T, W, H]
         o = o.permute(1, 0, 2, 3)
         return o
@@ -194,6 +240,7 @@ class CubeConv3d(torch.nn.Module):
         out_channels,
         origin_shape: tuple[int, int, int],
         kernel_size: tuple[int, int, int],
+        use_layer_norm = True,
     ):
         super(CubeConv3d, self).__init__()
 
@@ -210,7 +257,7 @@ class CubeConv3d(torch.nn.Module):
                 origin_shape[1] // kernel_size[1],
                 origin_shape[2] // kernel_size[2],
             )
-        )
+        ) if use_layer_norm else None
 
     def forward(
         self,
@@ -218,7 +265,10 @@ class CubeConv3d(torch.nn.Module):
     ) -> torch.FloatTensor:
         # [C, T, W, H]
         out = self.conv_3d(x)
-        out = self.layer_norm(out)
+
+        if self.layer_norm is not None:
+            out = self.layer_norm(out)
+
         return out
 
 
@@ -226,33 +276,48 @@ class CubeConv2dLTAE(torch.nn.Module):
     def __init__(
         self,
         in_channels,
-        hidden_dim,
+        out_channels,
+        origin_shape: tuple[int, int, int],
+        kernel_size: tuple[int, int, int],
         num_heads,
         d_k,
-        out_channels,
-        cube_width: int,
-        cube_height: int,
+        use_layer_norm = True
     ):
         super(CubeConv2dLTAE, self).__init__()
 
         self.conv_2d = torch.nn.Conv2d(
             in_channels,
-            hidden_dim,
-            kernel_size=(cube_width, cube_height),
-            stride=(cube_width, cube_height),
+            out_channels,
+            kernel_size=(kernel_size[1], kernel_size[2]),
+            stride=(kernel_size[1], kernel_size[2]),
         )
-
         self.ltae_2d = LTAE2d(
-            hidden_dim,
+            out_channels,
             n_head=num_heads,
             d_k=d_k,
-            mlp=[hidden_dim, out_channels],
+            mlp=[out_channels],
             dropout=0.1,
             d_model=None,
             T=1000,
             return_att=False,
             positional_encoding=True,
         )
+
+        self.output_dim = (
+            origin_shape[0] // kernel_size[0],
+            origin_shape[1] // kernel_size[1],
+            origin_shape[2] // kernel_size[2],
+        )
+        self.out_channels = out_channels
+
+        self.layer_norm = nn.LayerNorm(
+            (
+                origin_shape[0] // kernel_size[0],
+                out_channels,
+                origin_shape[1] // kernel_size[1],
+                origin_shape[2] // kernel_size[2],
+            )
+        ) if use_layer_norm else None
 
     def forward(
         self,
@@ -268,6 +333,9 @@ class CubeConv2dLTAE(torch.nn.Module):
         batches, timesteps, _, _, _ = out.size()
         batch_positions = torch.arange(timesteps).unsqueeze(0).repeat(batches, 1).to(x)
         out = self.ltae_2d(out, batch_positions=batch_positions)
+
+        if self.layer_norm is not None:
+            out = self.layer_norm(out)
 
         # [1, C', W, H] -> [C, 1, W, H]
         out = out.permute(1, 0, 2, 3)
