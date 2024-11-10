@@ -126,7 +126,7 @@ def main(args):
         },
     )
 
-    da = da.where(cube[lsm_var] == 1, np.nan)
+    da = da.where(cube[lsm_var] > 0.1, np.nan)
 
     output_var_name = f"{args.output_var_prefix}_{args.target_shift}"
     
@@ -176,7 +176,7 @@ if __name__ == "__main__":
         type=int,
         action="store",
         dest="target_shift",
-        default=8,
+        default=1,
         help="Target shift",
     )
     parser.add_argument(
