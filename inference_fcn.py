@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
+
 import logging
 import xarray as xr
 import numpy as np
 from tqdm import tqdm
 import json
 import torch
-import torch.nn.functional as F
 from tqdm import tqdm
 import xarray as xr
 from tqdm import tqdm
 import numpy as np
 import json
-import os
 import argparse
 from seasfire.firecastnet_lit import FireCastNetLit
 
@@ -130,24 +129,9 @@ def main(args):
 
     output_var_name = f"{args.output_var_prefix}_{args.target_shift}"
     
-    if os.path.exists(args.output_path):
-        logger.info(f"Appending to existing zarr store at {args.output_path}")
-        # Open existing zarr store
-        ds_existing = xr.open_zarr(args.output_path, consolidated=False)
-        
-        # Create new dataset with just the new variable
-        ds_new = xr.Dataset({output_var_name: da})
-        
-        # Merge the datasets
-        ds_merged = xr.merge([ds_existing, ds_new])
-        
-        # Write back to zarr store
-        ds_merged.to_zarr(args.output_path, mode='w')
-        logger.info(f"Successfully appended variable {output_var_name}")
-    else:
-        logger.info(f"Creating new zarr store at {args.output_path}")
-        ds_output = xr.Dataset({output_var_name: da})
-        ds_output.to_zarr(args.output_path, mode="w")
+    logger.info(f"Creating new zarr store at {args.output_path}")
+    ds_output = xr.Dataset({output_var_name: da})
+    ds_output.to_zarr(args.output_path, mode="w")
 
 if __name__ == "__main__":
 
