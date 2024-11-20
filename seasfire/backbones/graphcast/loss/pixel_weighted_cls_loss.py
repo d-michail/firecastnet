@@ -7,7 +7,7 @@ class PixelWeightedBCEWithLogitsLoss(nn.Module):
     Parameters
     ----------
     pixel_weights : torch.Tensor
-        Tensor of shape [H, W] defining the weight for each pixel.
+        Tensor of shape [1, H, W] defining the weight for each pixel.
     """
 
     def __init__(self, pixel_weights):
@@ -22,9 +22,9 @@ class PixelWeightedBCEWithLogitsLoss(nn.Module):
         Parameters
         ----------
         invar : torch.Tensor
-            Predictions of shape [C, H, W].
+            Predictions of shape [B, H, W].
         outvar : torch.Tensor
-            Target values of shape [C, H, W].
+            Target values of shape [B, H, W].
         """
         # Compute pixel-wise BCE loss
         pixel_loss = self.bce_loss(invar, outvar)

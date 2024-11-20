@@ -68,11 +68,11 @@ model:
     max_lon: 179.875
     min_lon: -179.875
     lat_lon_static_data: true
-    timeseries_len: 12
+    timeseries_len: 24
     embed_cube: true
     embed_cube_width: 4
     embed_cube_height: 4
-    embed_cube_time: 12
+    embed_cube_time: 24
     embed_cube_dim: 64
     embed_cube_layer_norm: true
     embed_cube_vit_enable: false
@@ -100,25 +100,28 @@ model:
     norm_type: LayerNorm
     do_concat_trick: false
     regression_loss: mse
+    cube_path: "cube.zarr"
     gfed_region_enable_loss_weighting: true
-    gfed_region_cube: "cube.zarr"
     gfed_region_var_name: "gfed_region"
     gfed_region_weights: 
       0: 0.0
-      1: 1.0
-      2: 1.0
-      3: 1.0
-      4: 1.0
-      5: 1.0
-      6: 1.0
-      7: 1.0
-      8: 1.0
-      9: 1.0
-      10: 1.0
-      11: 1.0
-      12: 1.0
-      13: 1.0
-      14: 1.0
+      1: 4.68
+      2: 3.92
+      3: 3.85
+      4: 3.64
+      5: 1.84
+      6: 4.73
+      7: 4.63
+      8: 1.57
+      9: 1.20
+      10: 3.19
+      11: 2.47
+      12: 2.87
+      13: 4.52
+      14: 3.03
+    lsm_filter_enable: true
+    lsm_var_name: "lsm"
+    lsm_threshold: 0.1
     lr: 0.001
     weight_decay: 0.00000001
     optimizer_apex: false
@@ -161,7 +164,7 @@ data:
   target_shift: 16
   target_var_per_area: false
   target_var_log_process: false
-  timeseries_weeks: 12
+  timeseries_weeks: 24
   lat_dim: null 
   lon_dim: null
   lat_dim_overlap: null

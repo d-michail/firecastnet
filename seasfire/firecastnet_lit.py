@@ -72,10 +72,13 @@ class FireCastNetLit(L.LightningModule):
         do_concat_trick: bool = False,
         task: str = "classification",
         regression_loss: str = "mse",
+        cube_path: str = "cube.zarr",        
         gfed_region_enable_loss_weighting: bool = False,
-        gfed_region_cube="cube.zarr",
         gfed_region_var_name="gfed_region",
         gfed_region_weights=None,
+        lsm_filter_enable=True,
+        lsm_var_name: str ="lsm",
+        lsm_threshold: float = 0.05,
         lr: float = 0.01,
         weight_decay: float = 0.000001,
         max_epochs: int = 100,
@@ -105,11 +108,18 @@ class FireCastNetLit(L.LightningModule):
             input_dim_grid_nodes,
         )
 
+        self._cube_path = cube_path
+
         self._init_gfed_regions(
             gfed_region_enable_loss_weighting,
-            gfed_region_cube,
             gfed_region_var_name,
             gfed_region_weights,
+        )
+
+        self._init_lsm_filter(
+            lsm_filter_enable,
+            lsm_var_name,
+            lsm_threshold,
         )
 
         self._lr = lr
@@ -267,7 +277,6 @@ class FireCastNetLit(L.LightningModule):
     def _init_gfed_regions(
         self,
         gfed_region_enable_loss_weighting,
-        gfed_region_cube,
         gfed_region_var_name,
         gfed_region_weights,
         dtype=torch.float32,
@@ -279,8 +288,8 @@ class FireCastNetLit(L.LightningModule):
 
         logger.info("Enabling GFED region weightning")
 
-        logger.info("Opening cube zarr file: {}".format(gfed_region_cube))
-        cube = xr.open_zarr(gfed_region_cube, consolidated=False)
+        logger.info("Opening cube zarr file: {}".format(self._cube_path))
+        cube = xr.open_zarr(self._cube_path, consolidated=False)
         gfed_region = cube[gfed_region_var_name].values
         gfed_region = torch.tensor(gfed_region, dtype=dtype)
         cube.close()
@@ -294,6 +303,34 @@ class FireCastNetLit(L.LightningModule):
 
         logger.info(
             "GFED regions tensor with shape: {}".format(self._gfed_region_weights)
+        )
+
+    def _init_lsm_filter(
+        self,
+        lsm_filter_enable,
+        lsm_var_name,
+        lsm_threshold,
+        dtype=torch.float32,
+    ):
+        self._lsm_filter_enable = lsm_filter_enable
+        self._lsm_threshold = lsm_threshold
+
+        if not lsm_filter_enable:
+            self._lsm_mask = None
+            return
+
+        logger.info("Enabling LSM filter/mask")
+
+        logger.info("Opening cube zarr file: {}".format(self._cube_path))
+        cube = xr.open_zarr(self._cube_path, consolidated=False)
+        lsm_filter = cube[lsm_var_name].values
+        lsm_filter = torch.tensor(lsm_filter, dtype=dtype).unsqueeze(0)
+        lsm_mask = lsm_filter < lsm_threshold
+        self.register_buffer("_lsm_mask", lsm_mask)
+        cube.close()
+
+        logger.info(
+            "LSM filter/mask tensor with shape: {}".format(self._lsm_mask)
         )
 
     def _init_metrics(self, task, regression_loss):
@@ -540,8 +577,13 @@ class FireCastNetLit(L.LightningModule):
 
         metrics, metrics_names = self._metrics[stage]
 
+        # if LSM mask is present, adjust prediction to zero
+        if self._lsm_mask is not None: 
+            preds[self._lsm_mask] = 0
+
         preds = preds.view(-1)
         y = y.view(-1)
+
         for idx, metric in enumerate(metrics):
             name = metrics_names[idx]
             metric.update(preds, y)
@@ -571,6 +613,10 @@ class FireCastNetLit(L.LightningModule):
             preds = torch.sigmoid(logits)
         else:
             preds = logits
+
+        # if LSM mask is present, adjust prediction to zero
+        if self._lsm_mask is not None: 
+            preds[self._lsm_mask] = 0
 
         return preds
 
