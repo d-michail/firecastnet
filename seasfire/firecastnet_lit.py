@@ -3,10 +3,11 @@ import logging
 import numpy as np
 import torch
 import torch.nn as nn
+import xarray as xr
 
 from torchmetrics import (
-    AUROC, 
-    AveragePrecision, 
+    AUROC,
+    AveragePrecision,
     CriticalSuccessIndex,
     F1Score,
     MeanSquaredError,
@@ -20,6 +21,7 @@ from .backbones.graphcast.loss.regression_area_loss import (
     CellAreaWeightedMSELossFunction,
     CellAreaWeightedHuberLossFunction,
 )
+from .backbones.graphcast.loss.pixel_weighted_cls_loss import PixelWeightedBCEWithLogitsLoss
 from .backbones.graphcast.graph_utils import deg2rad, grid_cell_area
 from .backbones.graphcast.graph_cast_cube_net import GraphCastCubeNet
 from .backbones.graphcast.graph_builder import GraphBuilder
@@ -30,7 +32,7 @@ logger = logging.getLogger(__name__)
 class FireCastNetLit(L.LightningModule):
     def __init__(
         self,
-        icospheres_graph_path="icospheres/icospheres_0_1_2_3.json.gz",
+        icospheres_graph_path="icospheres/icospheres_0_1_2_3_4_5_6.json.gz",
         sp_res=0.250,
         max_lat=89.875,
         min_lat=-89.875,
@@ -70,6 +72,10 @@ class FireCastNetLit(L.LightningModule):
         do_concat_trick: bool = False,
         task: str = "classification",
         regression_loss: str = "mse",
+        gfed_region_enable_loss_weighting: bool = False,
+        gfed_region_cube="cube.zarr",
+        gfed_region_var_name="gfed_region",
+        gfed_region_weights=None,
         lr: float = 0.01,
         weight_decay: float = 0.000001,
         max_epochs: int = 100,
@@ -97,6 +103,13 @@ class FireCastNetLit(L.LightningModule):
             embed_cube_max_lon,
             embed_cube_min_lon,
             input_dim_grid_nodes,
+        )
+
+        self._init_gfed_regions(
+            gfed_region_enable_loss_weighting,
+            gfed_region_cube,
+            gfed_region_var_name,
+            gfed_region_weights,
         )
 
         self._lr = lr
@@ -132,7 +145,7 @@ class FireCastNetLit(L.LightningModule):
             embed_cube_vit_mlp_dim,
             embed_cube_ltae_enable,
             embed_cube_ltae_num_heads,
-            embed_cube_ltae_d_k,            
+            embed_cube_ltae_d_k,
         )
 
         self._init_example(
@@ -251,11 +264,48 @@ class FireCastNetLit(L.LightningModule):
                 "Increased input dimensions to {}".format(self._input_dim_grid_nodes)
             )
 
+    def _init_gfed_regions(
+        self,
+        gfed_region_enable_loss_weighting,
+        gfed_region_cube,
+        gfed_region_var_name,
+        gfed_region_weights,
+        dtype=torch.float32,
+    ):
+        self._gfed_region_enable_loss_weighting = gfed_region_enable_loss_weighting
+
+        if not gfed_region_enable_loss_weighting:
+            return
+
+        logger.info("Enabling GFED region weightning")
+
+        logger.info("Opening cube zarr file: {}".format(gfed_region_cube))
+        cube = xr.open_zarr(gfed_region_cube, consolidated=False)
+        gfed_region = cube[gfed_region_var_name].values
+        gfed_region = torch.tensor(gfed_region, dtype=dtype)
+        cube.close()
+
+        # Map GFED regions to weights
+        weight_map = torch.zeros_like(gfed_region, dtype=dtype)
+        for region, weight in gfed_region_weights.items():
+            weight_map = torch.where(gfed_region == region, weight, weight_map)
+
+        self._gfed_region_weights = weight_map.unsqueeze(0)
+
+        logger.info(
+            "GFED regions tensor with shape: {}".format(self._gfed_region_weights)
+        )
+
     def _init_metrics(self, task, regression_loss):
         self._task = task
 
         if task == "classification":
-            self._criterion = nn.BCEWithLogitsLoss()
+            if self._gfed_region_enable_loss_weighting:
+                self._criterion = PixelWeightedBCEWithLogitsLoss(
+                    self._gfed_region_weights
+                )
+            else:
+                self._criterion = nn.BCEWithLogitsLoss()
             self._metrics_names = ["auc", "f1", "auprc"]
             self._val_metrics = nn.ModuleList(
                 [
@@ -286,7 +336,7 @@ class FireCastNetLit(L.LightningModule):
                     MeanAbsoluteError(),
                     R2Score(),
                     SymmetricMeanAbsolutePercentageError(),
-                    CriticalSuccessIndex(0.5)
+                    CriticalSuccessIndex(0.5),
                 ]
             )
             self._test_metrics = nn.ModuleList(
@@ -295,7 +345,7 @@ class FireCastNetLit(L.LightningModule):
                     MeanAbsoluteError(),
                     R2Score(),
                     SymmetricMeanAbsolutePercentageError(),
-                    CriticalSuccessIndex(0.5)                    
+                    CriticalSuccessIndex(0.5),
                 ]
             )
         else:
@@ -431,7 +481,7 @@ class FireCastNetLit(L.LightningModule):
         if oci is not None:
             if oci.size(0) != 1:
                 raise ValueError("No support for batch size > 1")
-            oci = oci[0]            
+            oci = oci[0]
 
         # Prepare y in right format
         # [1, 1, T, W, H] -> [1, T, W, H]
@@ -454,7 +504,7 @@ class FireCastNetLit(L.LightningModule):
         else:
             x, y = batch
             x, _, y = self._prepare_data(x, None, y)
-            logits = self(x)        
+            logits = self(x)
 
         logits = logits[:, -1, :, :]
         y = y[:, -1, :, :]
