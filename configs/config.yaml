@@ -101,7 +101,7 @@ model:
     do_concat_trick: false
     regression_loss: mse
     cube_path: "cube.zarr"
-    gfed_region_enable_loss_weighting: true
+    gfed_region_enable_loss_weighting: false
     gfed_region_var_name: "gfed_region"
     gfed_region_weights: 
       0: 0.0
@@ -157,6 +157,9 @@ data:
   - oci_soi
   - oci_wp  
   oci_lag: 14
+  climatology_enabled: false
+  climatology_cube: "climatology.zarr"  
+  climatology_var_name: clim_gwis_ba_octodays_mean  
   log_preprocess_input_vars:
   - tp
   - pop_dens
