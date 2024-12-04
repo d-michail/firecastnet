@@ -145,7 +145,9 @@ class UTAELit(L.LightningModule):
         return out
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
+        x = batch.get("x")
+        y = batch.get("y")
+
         x, y = self._prepare_data(x, y)
         logits = self(x)
 
@@ -158,7 +160,9 @@ class UTAELit(L.LightningModule):
         return {"loss": loss}
 
     def evaluate(self, batch, stage=None):
-        x, y = batch
+        x = batch.get("x")
+        y = batch.get("y")
+
         x, y = self._prepare_data(x, y)
         logits = self(x)
 
@@ -188,7 +192,9 @@ class UTAELit(L.LightningModule):
         self.evaluate(batch, "test")
 
     def predict_step(self, batch):
-        x, y = batch
+        x = batch.get("x")
+        y = batch.get("y")
+
         x, y = self._prepare_data(x, y)
 
         logits = self(x)

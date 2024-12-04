@@ -597,13 +597,15 @@ class BatcherDataset(Dataset):
         if self.task == "classification":
             target = np.where(target != 0, 1, 0)
 
-        if self.oci_enabled and len(self.input_oci_vars) > 0:
-            result = (inputs, oci_inputs, target)
-        else:
-            result = (inputs, target)
-
         if self.clima is not None:
             clima_var = self.clima.sel(latitude=batch.latitude,longitude=batch.longitude,time=batch.time).values
-            result = result + (clima_var,)
 
+        result = {}
+        result["x"] = inputs
+        if self.oci_enabled and len(self.input_oci_vars) > 0: 
+            result["oci"] = oci_inputs
+        result["y"] = target
+        if self.clima is not None:
+            result["clima"] = clima_var
+            
         return result

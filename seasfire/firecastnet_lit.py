@@ -16,12 +16,12 @@ from torchmetrics import (
     SymmetricMeanAbsolutePercentageError,
 )
 
-from .backbones.graphcast.loss.regression_area_loss import (
+from .backbones.loss.regression_area_loss import (
     CellAreaWeightedL1LossFunction,
     CellAreaWeightedMSELossFunction,
     CellAreaWeightedHuberLossFunction,
 )
-from .backbones.graphcast.loss.pixel_weighted_cls_loss import PixelWeightedBCEWithLogitsLoss
+from .backbones.loss.fcn_cls_loss import FCNClassificationLoss
 from .backbones.graphcast.graph_utils import deg2rad, grid_cell_area
 from .backbones.graphcast.graph_cast_cube_net import GraphCastCubeNet
 from .backbones.graphcast.graph_builder import GraphBuilder
@@ -72,12 +72,14 @@ class FireCastNetLit(L.LightningModule):
         do_concat_trick: bool = False,
         task: str = "classification",
         regression_loss: str = "mse",
-        cube_path: str = "cube.zarr",        
+        cube_path: str = "cube.zarr",
         gfed_region_enable_loss_weighting: bool = False,
         gfed_region_var_name="gfed_region",
         gfed_region_weights=None,
+        climatology_enable_loss: bool = False,
+        climatology_lambda = 0.1,
         lsm_filter_enable=True,
-        lsm_var_name: str ="lsm",
+        lsm_var_name: str = "lsm",
         lsm_threshold: float = 0.05,
         lr: float = 0.01,
         weight_decay: float = 0.000001,
@@ -115,6 +117,9 @@ class FireCastNetLit(L.LightningModule):
             gfed_region_var_name,
             gfed_region_weights,
         )
+
+        self._climatology_enable_loss = climatology_enable_loss
+        self._climatology_lambda = climatology_lambda
 
         self._init_lsm_filter(
             lsm_filter_enable,
@@ -329,20 +334,21 @@ class FireCastNetLit(L.LightningModule):
         self.register_buffer("_lsm_mask", lsm_mask)
         cube.close()
 
-        logger.info(
-            "LSM filter/mask tensor with shape: {}".format(self._lsm_mask)
-        )
+        logger.info("LSM filter/mask tensor with shape: {}".format(self._lsm_mask))
 
     def _init_metrics(self, task, regression_loss):
         self._task = task
 
         if task == "classification":
-            if self._gfed_region_enable_loss_weighting:
-                self._criterion = PixelWeightedBCEWithLogitsLoss(
+            self._criterion = FCNClassificationLoss(
+                pixel_weights=(
                     self._gfed_region_weights
-                )
-            else:
-                self._criterion = nn.BCEWithLogitsLoss()
+                    if self._gfed_region_enable_loss_weighting
+                    else None
+                ), 
+                enable_clima=self._climatology_enable_loss,
+                clima_lambda=self._climatology_lambda
+            )
             self._metrics_names = ["auc", "f1", "auprc"]
             self._val_metrics = nn.ModuleList(
                 [
@@ -493,7 +499,7 @@ class FireCastNetLit(L.LightningModule):
             dtype=dtype,
         )
 
-    def _prepare_data(self, x, oci, y):
+    def _prepare_data(self, x, oci, y, clima):
         if len(x.size()) != 5:
             raise ValueError("Model accepts input of shape [1, C, T, W, H]")
 
@@ -528,26 +534,26 @@ class FireCastNetLit(L.LightningModule):
                 raise ValueError("No support for batch size > 1")
             y = y[0]
 
-        return x, oci, y
+        return x, oci, y, clima
 
     def forward(self, x: torch.Tensor, oci: torch.Tensor = None):
         return self._net(x)
 
     def training_step(self, batch, batch_idx):
-        if len(batch) == 3:
-            x, oci, y = batch
-            x, oci, y = self._prepare_data(x, oci, y)
-            logits = self(x, oci)
-        else:
-            x, y = batch
-            x, _, y = self._prepare_data(x, None, y)
-            logits = self(x)
+        x = batch.get("x")
+        oci = batch.get("oci")
+        y = batch.get("y")
+        clima = batch.get("clima")
+        x, oci, y, clima = self._prepare_data(x, oci, y, clima)
+        logits = self(x, oci)
 
         logits = logits[:, -1, :, :]
         y = y[:, -1, :, :]
+        if clima is not None:
+            clima = clima[:, -1, :, :]
 
         if self._task == "classification":
-            loss = self._criterion(logits, y.to(torch.float32))
+            loss = self._criterion(logits, y.to(torch.float32), clima=clima)
         else:
             loss = self._criterion(logits, y)
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
@@ -555,20 +561,20 @@ class FireCastNetLit(L.LightningModule):
         return {"loss": loss}
 
     def evaluate(self, batch, stage=None):
-        if len(batch) == 3:
-            x, oci, y = batch
-            x, oci, y = self._prepare_data(x, oci, y)
-            logits = self(x, oci)
-        else:
-            x, y = batch
-            x, _, y = self._prepare_data(x, None, y)
-            logits = self(x)
+        x = batch.get("x")
+        oci = batch.get("oci")
+        y = batch.get("y")
+        clima = batch.get("clima")
+        x, oci, y, clima = self._prepare_data(x, oci, y, clima)
+        logits = self(x, oci)
 
         logits = logits[:, -1, :, :]
         y = y[:, -1, :, :]
+        if clima is not None:
+            clima = clima[:, -1, :, :]
 
         if self._task == "classification":
-            loss = self._criterion(logits, y.to(torch.float32))
+            loss = self._criterion(logits, y.to(torch.float32), clima=clima)
             preds = torch.sigmoid(logits)
         else:
             loss = self._criterion(logits, y)
@@ -578,7 +584,7 @@ class FireCastNetLit(L.LightningModule):
         metrics, metrics_names = self._metrics[stage]
 
         # if LSM mask is present, adjust prediction to zero
-        if self._lsm_mask is not None: 
+        if self._lsm_mask is not None:
             preds[self._lsm_mask] = 0
 
         preds = preds.view(-1)
@@ -598,14 +604,13 @@ class FireCastNetLit(L.LightningModule):
         self.evaluate(batch, "test")
 
     def predict_step(self, batch):
-        if len(batch) == 2:
-            x, oci = batch
-            x, oci, _ = self._prepare_data(x, oci, None)
-            logits = self(x, oci)
-        else:
-            x = batch
-            x, _, _ = self._prepare_data(x, None, None)
-            logits = self(x)
+        x = batch.get("x")
+        oci = batch.get("oci")
+        y = batch.get("y")
+        clima = batch.get("clima")
+
+        x, oci, y, clima = self._prepare_data(x, oci, y, clima)
+        logits = self(x, oci)
 
         logits = logits[:, -1, :, :]
 
@@ -615,7 +620,7 @@ class FireCastNetLit(L.LightningModule):
             preds = logits
 
         # if LSM mask is present, adjust prediction to zero
-        if self._lsm_mask is not None: 
+        if self._lsm_mask is not None:
             preds[self._lsm_mask] = 0
 
         return preds

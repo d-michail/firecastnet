@@ -119,6 +119,8 @@ model:
       12: 2.87
       13: 4.52
       14: 3.03
+    climatology_enable_loss: false
+    climatology_lambda: 0.1
     lsm_filter_enable: true
     lsm_var_name: "lsm"
     lsm_threshold: 0.1
