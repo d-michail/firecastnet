@@ -23,7 +23,7 @@ def main(args):
     octodays = list(range(1, 47)) * (2021 - 2001 + 1)
     da_octodays = xr.DataArray(octodays, dims="time", coords={"time": cube["time"]})
     cube["octodays"] = da_octodays
-    training_years = slice("2002", "2018")
+    training_years = slice("2002-01-01", "2018-01-01")
     variable = "gwis_ba"
 
     if args.log_target_var:
