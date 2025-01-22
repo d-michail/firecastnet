@@ -7,9 +7,39 @@ trainer:
   num_nodes: 1
   precision: null
   logger: 
-  - class_path: lightning.pytorch.loggers.CSVLogger
-    init_args: 
-      save_dir: './'
+  - class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      name: null
+      save_dir: .
+      version: null
+      offline: false
+      dir: null
+      id: null
+      anonymous: null
+      project: lightning_logs
+      log_model: true
+      experiment: null
+      prefix: ''
+      checkpoint_name: null
+      job_type: null
+      config: null
+      entity: null
+      reinit: null
+      tags: null
+      group: null
+      notes: null
+      magic: null
+      config_exclude_keys: null
+      config_include_keys: null
+      mode: null
+      allow_val_change: null
+      resume: allow
+      force: null
+      tensorboard: null
+      sync_tensorboard: null
+      monitor_gym: null
+      save_code: null
+      settings: null
   callbacks:
   - class_path: lightning.pytorch.callbacks.ModelSummary      
     init_args: 
@@ -22,9 +52,9 @@ trainer:
       save_last: true
   - class_path: lightning.pytorch.callbacks.ModelCheckpoint      
     init_args: 
-      mode: 'max'
-      monitor: 'val_auprc'
-      filename:  '{epoch:03d}-{val_loss:.4f}-{val_auprc:.3f}'
+      mode: 'min'
+      monitor: 'val_loss'
+      filename:  '{epoch:03d}-{val_loss:.3f}'
   - class_path: seasfire.callbacks.DGLGraphToDevice
   fast_dev_run: false
   max_epochs: 50
@@ -100,25 +130,25 @@ model:
     norm_type: LayerNorm
     do_concat_trick: false
     regression_loss: mse
-    cube_path: "cube.zarr"
+    cube_path: "../cube_v4.zarr"
     gfed_region_enable_loss_weighting: false
     gfed_region_var_name: "gfed_region"
     gfed_region_weights: 
       0: 0.0
-      1: 4.68
-      2: 3.92
-      3: 3.85
-      4: 3.64
-      5: 1.84
-      6: 4.73
-      7: 4.63
-      8: 1.57
-      9: 1.20
-      10: 3.19
-      11: 2.47
-      12: 2.87
-      13: 4.52
-      14: 3.03
+      1: 0.0
+      2: 0.0
+      3: 0.0
+      4: 0.0
+      5: 0.0
+      6: 0.0
+      7: 0.0
+      8: 0.0
+      9: 0.0
+      10: 0.0
+      11: 0.0
+      12: 1.0
+      13: 0.0
+      14: 0.0
     climatology_enable_loss: false
     climatology_lambda: 0.1
     lsm_filter_enable: true
@@ -131,7 +161,7 @@ model:
     display_model_example: false
     display_model_example_precision: null
 data:
-  cube_path: "cube.zarr"
+  cube_path: "../cube_v4.zarr"
   input_vars:
   - mslp
   - tp
@@ -167,17 +197,23 @@ data:
   - pop_dens
   target_var: gwis_ba
   target_shift: 16
+  train_start: 2002-01-01
+  train_end: 2016-12-31
+  val_start: 2017-01-01
+  val_end: 2017-12-31
+  test_start: 2018-01-01
+  test_end: 2021-12-31
   target_var_per_area: false
-  target_var_log_process: false
+  target_var_log_process: true
   timeseries_weeks: 24
   lat_dim: null 
   lon_dim: null
   lat_dim_overlap: null
   lon_dim_overlap: null
   time_dim_overlap: null
-  task: classification
+  task: regression
   batch_size: 1
-  num_workers: 8
+  num_workers: 2
   pin_memory: false
   load_cube_in_memory: false
   train_random_sample: null

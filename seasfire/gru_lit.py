@@ -128,7 +128,9 @@ class GRULit(L.LightningModule):
         return self._net(x)
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
+        x = batch.get("x")
+        y = batch.get("y")
+
         x, y = self._prepare_data(x, y)
         logits = self(x)
 
@@ -143,7 +145,9 @@ class GRULit(L.LightningModule):
         return {"loss": loss}
 
     def evaluate(self, batch, stage=None):
-        x, y = batch
+        x = batch.get("x")
+        y = batch.get("y")
+
         x, y = self._prepare_data(x, y)
         logits = self(x)
 
@@ -175,7 +179,9 @@ class GRULit(L.LightningModule):
         self.evaluate(batch, "test")
 
     def predict_step(self, batch):
-        x, y = batch
+        x = batch.get("x")
+        y = batch.get("y")
+
         x, y = self._prepare_data(x, y)
 
         logits = self(x)

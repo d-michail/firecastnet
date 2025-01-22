@@ -32,12 +32,21 @@ class SeasFireDataModule(L.LightningDataModule):
         oci_enabled: bool = False,
         oci_input_vars: List[str] = [],
         oci_lag: int = 10,
+        climatology_enabled: bool = False,
+        climatology_cube: str = "climatology.zarr",
+        climatology_var_name: str = "clim_gwis_ba_octodays_mean",
         log_preprocess_input_vars: List[str] = ["tp", "pop_dens"],
         target_var="gwis_ba",
         target_shift=1,
         target_var_per_area=False,
         target_var_log_process=False,
         timeseries_weeks=1,
+        train_start="2002-01-01",
+        train_end="2018-01-01",
+        val_start="2018-01-01",
+        val_end="2019-01-01",
+        test_start="2019-01-01",
+        test_end="2020-01-01",
         lat_dim=None,
         lon_dim=None,
         lat_dim_overlap: int = None,
@@ -157,10 +166,25 @@ class SeasFireDataModule(L.LightningDataModule):
                 dim={"time": self._cube.time}, axis=0
             )
 
+        self._clima = None
+        if climatology_enabled: 
+            logger.info("Opening climatology cube")
+            clima_cube = xr.open_zarr(climatology_cube, consolidated=False)
+            self._clima = clima_cube[climatology_var_name]
+            self._clima.load()
+            logger.info("Using variable {}".format(climatology_var_name))
+            clima_cube.close()
+
         self._timeseries_weeks = timeseries_weeks
 
         self._target_var = target_var
         self._target_shift = target_shift
+        self._train_start = train_start
+        self._train_end = train_end
+        self._val_start = val_start
+        self._val_end = val_end
+        self._test_start = test_start
+        self._test_end = test_end
         self._batch_size = batch_size
         self._num_workers = num_workers
         self._pin_memory = pin_memory
@@ -182,6 +206,12 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._oci_input_vars,
                 self._target_var,
                 self._target_shift,
+                self._train_start,
+                self._train_end,
+                self._val_start, 
+                self._val_end, 
+                self._test_start, 
+                self._test_end,
                 self._target_var_per_area,
                 self._target_var_log_process,
                 self._timeseries_weeks,
@@ -211,6 +241,12 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._oci_input_vars,
                 self._target_var,
                 self._target_shift,
+                self._train_start,
+                self._train_end,                
+                self._val_start,
+                self._val_end, 
+                self._test_start,                
+                self._test_end,
                 self._target_var_per_area,
                 self._target_var_log_process,
                 self._timeseries_weeks,
@@ -231,6 +267,7 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._static_vars,
                 train_oci_batches,
                 self._oci_input_vars,
+                self._clima,
                 self._target_var,
                 self._mean_std_dict,
                 self._oci_lag,
@@ -245,6 +282,7 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._static_vars,
                 val_oci_batches,
                 self._oci_input_vars,
+                self._clima,
                 self._target_var,
                 self._mean_std_dict,
                 self._oci_lag,
@@ -270,6 +308,12 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._oci_input_vars,
                 self._target_var,
                 self._target_shift,
+                self._train_start,
+                self._train_end,
+                self._val_start,
+                self._val_end, 
+                self._test_start,
+                self._test_end,
                 self._target_var_per_area,
                 self._target_var_log_process,
                 self._timeseries_weeks,
@@ -291,6 +335,7 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._static_vars,
                 test_oci_batches,
                 self._oci_input_vars,
+                self._clima,
                 self._target_var,
                 self._mean_std_dict,
                 self._oci_lag,
@@ -363,6 +408,85 @@ class SeasFireDataModule(L.LightningDataModule):
             persistent_workers=True,
         )
 
+# the code is taken from https://github.com/google-deepmind/graphcast/blob/main/graphcast/losses.py
+
+
+
+def normalized_latitude_weights(data: xr.DataArray) -> xr.DataArray:
+    """Weights based on latitude, roughly proportional to grid cell area.
+    This method supports two use cases only (both for equispaced values):
+    * Latitude values such that the closest value to the pole is at latitude
+      (90 - d_lat/2), where d_lat is the difference between contiguous latitudes.
+      For example: [-89, -87, -85, ..., 85, 87, 89]) (d_lat = 2)
+      In this case each point with `lat` value represents a sphere slice between
+      `lat - d_lat/2` and `lat + d_lat/2`, and the area of this slice would be
+      proportional to:
+      `sin(lat + d_lat/2) - sin(lat - d_lat/2) = 2 * sin(d_lat/2) * cos(lat)`, and
+      we can simply omit the term `2 * sin(d_lat/2)` which is just a constant
+      that cancels during normalization.
+    * Latitude values that fall exactly at the poles.
+      For example: [-90, -88, -86, ..., 86, 88, 90]) (d_lat = 2)
+      In this case each point with `lat` value also represents
+      a sphere slice between `lat - d_lat/2` and `lat + d_lat/2`,
+      except for the points at the poles, that represent a slice between
+      `90 - d_lat/2` and `90` or, `-90` and  `-90 + d_lat/2`.
+      The areas of the first type of point are still proportional to:
+      * sin(lat + d_lat/2) - sin(lat - d_lat/2) = 2 * sin(d_lat/2) * cos(lat)
+      but for the points at the poles now is:
+      * sin(90) - sin(90 - d_lat/2) = 2 * sin(d_lat/4) ^ 2
+      and we will be using these weights, depending on whether we are looking at
+      pole cells, or non-pole cells (omitting the common factor of 2 which will be
+      absorbed by the normalization).
+      It can be shown via a limit, or simple geometry, that in the small angles
+      regime, the proportion of area per pole-point is equal to 1/8th
+      the proportion of area covered by each of the nearest non-pole point, and we
+      test for this in the test.
+    Args:
+      data: `DataArray` with latitude coordinates.
+    Returns:
+      Unit mean latitude weights.
+    """
+    latitude = data.coords['latitude']
+
+    if np.any(np.isclose(np.abs(latitude), 90.)):
+        weights = _weight_for_latitude_vector_with_poles(latitude)
+    else:
+        weights = _weight_for_latitude_vector_without_poles(latitude)
+
+    return weights / weights.mean(skipna=False)
+
+
+def _weight_for_latitude_vector_without_poles(latitude):
+    """Weights for uniform latitudes of the form [+-90-+d/2, ..., -+90+-d/2]."""
+    delta_latitude = np.abs(_check_uniform_spacing_and_get_delta(latitude))
+    if (not np.isclose(np.max(latitude), 90 - delta_latitude / 2) or
+            not np.isclose(np.min(latitude), -90 + delta_latitude / 2)):
+        raise ValueError(
+            f'Latitude vector {latitude} does not start/end at '
+            '+- (90 - delta_latitude/2) degrees.')
+    return np.cos(np.deg2rad(latitude))
+
+
+def _weight_for_latitude_vector_with_poles(latitude):
+    """Weights for uniform latitudes of the form [+- 90, ..., -+90]."""
+    delta_latitude = np.abs(_check_uniform_spacing_and_get_delta(latitude))
+    if (not np.isclose(np.max(latitude), 90.) or
+            not np.isclose(np.min(latitude), -90.)):
+        raise ValueError(
+            f'Latitude vector {latitude} does not start/end at +- 90 degrees.')
+    weights = np.cos(np.deg2rad(latitude)) * np.sin(np.deg2rad(delta_latitude / 2))
+    # The two checks above enough to guarantee that latitudes are sorted, so
+    # the extremes are the poles
+    weights[[0, -1]] = np.sin(np.deg2rad(delta_latitude / 4)) ** 2
+    return weights
+
+
+def _check_uniform_spacing_and_get_delta(vector):
+    diff = np.diff(vector)
+    if not np.all(np.isclose(diff[0], diff)):
+        raise ValueError(f'Vector {diff} is not uniformly spaced.')
+    return diff[0]
+
 
 def sample_dataset(
     ds,
@@ -371,6 +495,12 @@ def sample_dataset(
     oci_input_vars,
     target_var,
     target_shift,
+    train_start,
+    train_end,
+    val_start,
+    val_end,
+    test_start,
+    test_end,
     target_var_per_area,
     target_var_log_process,
     timeseries_weeks,
@@ -393,13 +523,17 @@ def sample_dataset(
         if target_shift > 0:
             ds[var] = ds[var].shift(time=target_shift, fill_value=0)
 
+    # to get the weights on the seasfire dataset you use the following line
+    ds.assign(normalized_weights = normalized_latitude_weights(ds) * xr.ones_like(ds['area']))
+
     if target_var_per_area:
         logger.info("Converting target to target per area")
         ds[target_var] = ds[target_var] / ds["area"]
 
     if target_var_log_process: 
         logger.info("Computing logarithm of target var")
-        ds[target_var] = np.log1p(ds[target_var])
+        # ds[target_var] = np.log1p(ds[target_var])
+        ds[target_var] = np.log(1.0 + ds[target_var])
 
     oci_ds = None
     if oci_enabled and len(oci_input_vars) > 0:
@@ -425,13 +559,24 @@ def sample_dataset(
             )
 
     if split == "train":
-        ds = ds.sel(time=slice("2002-01-01", "2018-01-01"))
+        ds = ds.sel(time=slice(train_start, train_end))
+        logger.info("train from {} to {}".format(train_start, train_end))
     elif split == "val":
-        ds = ds.sel(time=slice("2018-01-01", "2019-01-01"))
+        ds = ds.sel(time=slice(val_start, val_end))
+        logger.info("validate from {} to {}".format(val_start, val_end))
     elif split == "test":
-        ds = ds.sel(time=slice("2019-01-01", "2020-01-01"))
+        ds = ds.sel(time=slice(test_start, test_end))
+        logger.info("test from {} to {}".format(test_start, test_end))
     else:
         raise ValueError("Invalid split")
+    # if split == "train":
+    #     ds = ds.sel(time=slice("2002-01-01", "2018-01-01"))
+    # elif split == "val":
+    #     ds = ds.sel(time=slice("2018-01-01", "2019-01-01"))
+    # elif split == "test":
+    #     ds = ds.sel(time=slice("2019-01-01", "2020-01-01"))
+    # else:
+    #     raise ValueError("Invalid split")
 
     logger.info("Creating split: {}".format(split))
     logger.info("Using data in [{}, {})".format(ds.time.values[0], ds.time.values[-1]))
@@ -512,6 +657,7 @@ class BatcherDataset(Dataset):
         static_vars,
         oci_batches,
         input_oci_vars,
+        clima,
         target_var,
         mean_std_dict,
         oci_lag,
@@ -525,6 +671,7 @@ class BatcherDataset(Dataset):
         self.static_vars = static_vars
         self.oci_batches = oci_batches
         self.input_oci_vars = input_oci_vars
+        self.clima = clima
         self.target_var = target_var
         self.mean_std_dict = mean_std_dict
         self.mean = np.stack(
@@ -580,7 +727,15 @@ class BatcherDataset(Dataset):
         if self.task == "classification":
             target = np.where(target != 0, 1, 0)
 
-        if self.oci_enabled and len(self.input_oci_vars) > 0:
-            return inputs, oci_inputs, target
+        if self.clima is not None:
+            clima_var = self.clima.sel(latitude=batch.latitude,longitude=batch.longitude,time=batch.time).values
 
-        return inputs, target
+        result = {}
+        result["x"] = inputs
+        if self.oci_enabled and len(self.input_oci_vars) > 0: 
+            result["oci"] = oci_inputs
+        result["y"] = target
+        if self.clima is not None:
+            result["clima"] = clima_var
+            
+        return result

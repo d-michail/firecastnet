@@ -48,6 +48,7 @@ def main():
 
     cli = SeasfireLightningCLI(
         datamodule_class=SeasFireDataModule,
+        save_config_kwargs={"overwrite": True},
     )
 
 
