@@ -22,7 +22,7 @@ MODEL_NAME="FireCastNet"
 CONFIG_FILE="configs/config-wandb.yaml"
 TIME="24"
 SHIFT="0"
-NAME="seasfire-bench-ts-${TIME}-shift-${SHIFT}"
+NAME="FCN-SeasBench-ts-${TIME}-shift-${SHIFT}"
 LOG_DIR="lightning_logs/${NAME}"
 CKPT_FILE="lightning_logs/${NAME}/checkpoints/last.ckpt"
 

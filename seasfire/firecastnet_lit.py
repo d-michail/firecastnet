@@ -345,6 +345,51 @@ class FireCastNetLit(L.LightningModule):
 
         logger.info("LSM filter/mask tensor with shape: {}".format(self._lsm_mask))
 
+
+    # the lat_weights code is taken from https://github.com/google-deepmind/graphcast/blob/main/graphcast/losses.py
+
+    def normalized_latitude_weights(self, data: xr.DataArray) -> xr.DataArray:
+        latitude = data.coords['latitude']
+
+        if np.any(np.isclose(np.abs(latitude), 90.)):
+            weights = self._weight_for_latitude_vector_with_poles(latitude)
+        else:
+            weights = self._weight_for_latitude_vector_without_poles(latitude)
+
+        return weights / weights.mean(skipna=False)
+
+
+    def _weight_for_latitude_vector_without_poles(self, latitude):
+        """Weights for uniform latitudes of the form [+-90-+d/2, ..., -+90+-d/2]."""
+        delta_latitude = np.abs(self._check_uniform_spacing_and_get_delta(latitude))
+        if (not np.isclose(np.max(latitude), 90 - delta_latitude / 2) or
+                not np.isclose(np.min(latitude), -90 + delta_latitude / 2)):
+            raise ValueError(
+                f'Latitude vector {latitude} does not start/end at '
+                '+- (90 - delta_latitude/2) degrees.')
+        return np.cos(np.deg2rad(latitude))
+
+
+    def _weight_for_latitude_vector_with_poles(self, latitude):
+        """Weights for uniform latitudes of the form [+- 90, ..., -+90]."""
+        delta_latitude = np.abs(self._check_uniform_spacing_and_get_delta(latitude))
+        if (not np.isclose(np.max(latitude), 90.) or
+                not np.isclose(np.min(latitude), -90.)):
+            raise ValueError(
+                f'Latitude vector {latitude} does not start/end at +- 90 degrees.')
+        weights = np.cos(np.deg2rad(latitude)) * np.sin(np.deg2rad(delta_latitude / 2))
+        # The two checks above enough to guarantee that latitudes are sorted, so
+        # the extremes are the poles
+        weights[[0, -1]] = np.sin(np.deg2rad(delta_latitude / 4)) ** 2
+        return weights
+
+
+    def _check_uniform_spacing_and_get_delta(self, vector):
+        diff = np.diff(vector)
+        if not np.all(np.isclose(diff[0], diff)):
+            raise ValueError(f'Vector {diff} is not uniformly spaced.')
+        return diff[0]
+
     def _init_lat_weights(
         self,
         lat_enable,
@@ -361,7 +406,8 @@ class FireCastNetLit(L.LightningModule):
 
         logger.info("Opening cube zarr file: {}".format(self._cube_path))
         cube = xr.open_zarr(self._cube_path, consolidated=False)
-        lat_weights = cube[lat_var_name].values
+        lat_weights = self.normalized_latitude_weights(cube) * xr.ones_like(cube['area'])
+        lat_weights = lat_weights.values
         lat_weights = torch.tensor(lat_weights, dtype=dtype).unsqueeze(0)
         self.register_buffer("_lat_weights", lat_weights)
         cube.close()

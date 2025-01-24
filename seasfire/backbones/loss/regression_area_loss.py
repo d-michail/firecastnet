@@ -27,7 +27,6 @@ class CellAreaWeightedMSELossFunction(nn.Module):
             targets = targets * mask
         loss = (predictions - targets) ** 2
         if weights is not None:
-            logger.info("using weights:{}".format(weights))
             if len(loss.shape) - len(weights.shape) == 1:
                 weights = weights.unsqueeze(-1)
             elif abs(len(loss.shape) - len(weights.shape)) > 1:
@@ -37,22 +36,22 @@ class CellAreaWeightedMSELossFunction(nn.Module):
 
 # class CellAreaWeightedMSELossFunction(nn.Module):
 #     """Loss function with cell area weighting.
-#
+# 
 #     Parameters
 #     ----------
 #     area : torch.Tensor
 #         Cell area with shape [H, W].
 #     """
-#
+# 
 #     def __init__(self, area):
 #         super().__init__()
 #         self.area = area
-#
+# 
 #     def forward(self, invar, outvar):
 #         """
 #         Implicit forward function which computes the loss given
 #         a prediction and the corresponding targets.
-#
+# 
 #         Parameters
 #         ----------
 #         invar : torch.Tensor
@@ -60,7 +59,7 @@ class CellAreaWeightedMSELossFunction(nn.Module):
 #         outvar : torch.Tensor
 #             target values of shape [C, H, W].
 #         """
-#
+# 
 #         loss = (invar - outvar) ** 2
 #         loss = loss.mean(dim=(0))
 #         loss = torch.mul(loss, self.area.to(invar))

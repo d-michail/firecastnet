@@ -129,6 +129,7 @@ model:
     aggregation: sum
     norm_type: LayerNorm
     do_concat_trick: false
+    lat_norm_enable_loss_weighting: true
     regression_loss: mse
     cube_path: "../cube_v4.zarr"
     gfed_region_enable_loss_weighting: false
