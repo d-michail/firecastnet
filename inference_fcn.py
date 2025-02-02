@@ -81,7 +81,9 @@ def main(args):
 
     # load model from checkpoint
     logger.info(f"Loading model from ckpt = {args.ckpt_path}")
-    model = FireCastNetLit.load_from_checkpoint(args.ckpt_path)
+    logger.info(f"Task type = {args.task}")
+    logger.info(f"Acquiring static/positional variables from = {args.cube_path}")
+    model = FireCastNetLit.load_from_checkpoint(args.ckpt_path, cube_path=args.cube_path, task=args.task)
     model.eval()
     model.dglTo(model.device)
 
@@ -155,6 +157,15 @@ if __name__ == "__main__":
         help="Checkpoint path",
     )
     parser.add_argument(
+        "--task",
+        metavar="KEY",
+        type=str,
+        action="store",
+        dest="task",
+        default="classification",
+        help="type of task (classification or regression)",
+    )
+    parser.add_argument(
         "--target-shift",
         metavar="KEY",
         type=int,
@@ -196,7 +207,7 @@ if __name__ == "__main__":
         type=str,
         action="store",
         dest="output_var_prefix",
-        default="predictions_cls_ba",
+        default="predictions_",
         help="Prediction variable prefix",
     )        
     parser.add_argument(

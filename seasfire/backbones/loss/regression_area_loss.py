@@ -31,6 +31,7 @@ class CellAreaWeightedMSELossFunction(nn.Module):
                 weights = weights.unsqueeze(-1)
             elif abs(len(loss.shape) - len(weights.shape)) > 1:
                 raise ValueError("weights must have the same number of dimensions as loss or one less to be broadcastable")
+            print(loss.shape, weights.shape)
             loss *= weights
         return loss.mean()
 

@@ -70,9 +70,9 @@ class FireCastNetLit(L.LightningModule):
         aggregation: str = "sum",
         norm_type: str = "LayerNorm",
         do_concat_trick: bool = False,
-        task: str = "classification",
+        task: str = "regression",
         regression_loss: str = "mse",
-        cube_path: str = "cube.zarr",
+        cube_path: str = "../cube_v4.zarr",
         gfed_region_enable_loss_weighting: bool = False,
         gfed_region_var_name="gfed_region",
         gfed_region_weights=None,
@@ -658,7 +658,7 @@ class FireCastNetLit(L.LightningModule):
             loss = self._criterion(logits, y.to(torch.float32), clima=clima)
             preds = torch.sigmoid(logits)
         else:
-            loss = self._criterion(logits, y)
+            loss = self._criterion(logits, y, weights=self._lat_weights)
             preds = logits
         self.log(f"{stage}_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 

@@ -35,6 +35,9 @@ class SeasFireDataModule(L.LightningDataModule):
         climatology_enabled: bool = False,
         climatology_cube: str = "climatology.zarr",
         climatology_var_name: str = "clim_gwis_ba_octodays_mean",
+        lat_weights_enabled: bool = False,
+        lat_weights_cube: str = "lat_weights.zarr",
+        lat_weights_var_name: str = "normalized_weights",
         log_preprocess_input_vars: List[str] = ["tp", "pop_dens"],
         target_var="gwis_ba",
         target_shift=1,
@@ -175,6 +178,15 @@ class SeasFireDataModule(L.LightningDataModule):
             logger.info("Using variable {}".format(climatology_var_name))
             clima_cube.close()
 
+        self._lat_weights = None
+        if lat_weights_enabled: 
+            logger.info("Opening lat weights cube")
+            lat_weights_cube = xr.open_zarr(lat_weights_cube, consolidated=False)
+            self._lat_weights = lat_weights_cube[lat_weights_var_name]
+            self._lat_weights.load()
+            logger.info("Using variable {}".format(lat_weights_var_name))
+            lat_weights_cube.close()
+
         self._timeseries_weeks = timeseries_weeks
 
         self._target_var = target_var
@@ -268,6 +280,7 @@ class SeasFireDataModule(L.LightningDataModule):
                 train_oci_batches,
                 self._oci_input_vars,
                 self._clima,
+                self._lat_weights,
                 self._target_var,
                 self._mean_std_dict,
                 self._oci_lag,
@@ -283,6 +296,7 @@ class SeasFireDataModule(L.LightningDataModule):
                 val_oci_batches,
                 self._oci_input_vars,
                 self._clima,
+                self._lat_weights,
                 self._target_var,
                 self._mean_std_dict,
                 self._oci_lag,
@@ -336,6 +350,7 @@ class SeasFireDataModule(L.LightningDataModule):
                 test_oci_batches,
                 self._oci_input_vars,
                 self._clima,
+                self._lat_weights,
                 self._target_var,
                 self._mean_std_dict,
                 self._oci_lag,
@@ -576,6 +591,7 @@ class BatcherDataset(Dataset):
         oci_batches,
         input_oci_vars,
         clima,
+        lat_weights,
         target_var,
         mean_std_dict,
         oci_lag,
@@ -590,6 +606,7 @@ class BatcherDataset(Dataset):
         self.oci_batches = oci_batches
         self.input_oci_vars = input_oci_vars
         self.clima = clima
+        self.lat_weights = lat_weights
         self.target_var = target_var
         self.mean_std_dict = mean_std_dict
         self.mean = np.stack(
@@ -648,6 +665,9 @@ class BatcherDataset(Dataset):
         if self.clima is not None:
             clima_var = self.clima.sel(latitude=batch.latitude,longitude=batch.longitude,time=batch.time).values
 
+        if self.lat_weights is not None:
+            lat_weights_var = self.lat_weights.sel(latitude=batch.latitude,longitude=batch.longitude).values
+
         result = {}
         result["x"] = inputs
         if self.oci_enabled and len(self.input_oci_vars) > 0: 
@@ -655,5 +675,7 @@ class BatcherDataset(Dataset):
         result["y"] = target
         if self.clima is not None:
             result["clima"] = clima_var
-            
+        if self.lat_weights is not None:
+            result["lat_weights"] = lat_weights_var
+
         return result

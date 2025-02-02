@@ -1,16 +1,26 @@
 import lightning as L
 import logging
+import numpy as np
 import torch
 import torch.nn as nn
+import xarray as xr
 
 from torchmetrics import (
     AUROC,
     AveragePrecision,
     CriticalSuccessIndex,
     F1Score,
+    MeanSquaredError,
+    MeanAbsoluteError,
+    R2Score,
     SymmetricMeanAbsolutePercentageError,
 )
-from torchmetrics import MeanSquaredError, MeanAbsoluteError, R2Score
+
+from .backbones.loss.regression_area_loss import (
+    CellAreaWeightedL1LossFunction,
+    CellAreaWeightedMSELossFunction,
+    CellAreaWeightedHuberLossFunction,
+)
 
 from .backbones.gru import GRUSeg
 
@@ -27,14 +37,20 @@ class GRULit(L.LightningModule):
         lr: float = 0.01,
         weight_decay: float = 0.000001,
         max_epochs: int = 100,
+        lat_weights_enable_loss: bool = False,
+        lat_var_name="normalized_weights",
+
     ):
         super().__init__()
 
         self.save_hyperparameters()
-
+        self._cube_path = "../cube_v4.zarr"
         self._lr = lr
         self._weight_decay = weight_decay
         self._max_epochs = max_epochs
+
+        self._lat_weights_enable_loss = lat_weights_enable_loss
+
 
         self._init_metrics(task)
 
@@ -43,7 +59,7 @@ class GRULit(L.LightningModule):
             hidden_layers,
             hidden_dim,
         )
-
+        
     def _init_metrics(self, task):
         self._task = task
 
@@ -65,7 +81,8 @@ class GRULit(L.LightningModule):
                 ]
             )
         elif task == "regression":
-            self._criterion = nn.MSELoss()
+            self._criterion = CellAreaWeightedMSELossFunction()
+            # self._criterion = nn.MSELoss()
             self._metrics_names = ["mse", "mae", "r2", "smape", "csi"]
             self._val_metrics = nn.ModuleList(
                 [
@@ -107,7 +124,7 @@ class GRULit(L.LightningModule):
             output_size=1,
         )
 
-    def _prepare_data(self, x, y):
+    def _prepare_data(self, x, y, lat_weights):
         if len(x.size()) != 5:
             raise ValueError("Model accepts input of shape [B, C, T, W, H]")
 
@@ -122,7 +139,9 @@ class GRULit(L.LightningModule):
         y = y.permute(0, 3, 4, 2, 1)
         y = y.reshape(-1, t_d, 1)
 
-        return x, y
+        lat_weights = lat_weights.reshape(-1, 1)
+
+        return x, y, lat_weights
 
     def forward(self, x: torch.Tensor):
         return self._net(x)
@@ -130,8 +149,9 @@ class GRULit(L.LightningModule):
     def training_step(self, batch, batch_idx):
         x = batch.get("x")
         y = batch.get("y")
+        lat_weights = batch.get("lat_weights")
 
-        x, y = self._prepare_data(x, y)
+        x, y, lat_weights = self._prepare_data(x, y, lat_weights)
         logits = self(x)
 
         y = y[:, -1, :]
@@ -139,7 +159,8 @@ class GRULit(L.LightningModule):
         if self._task == "classification":
             loss = self._criterion(logits, y.to(torch.float32))
         else:
-            loss = self._criterion(logits, y)
+            loss = self._criterion(logits, y, weights=lat_weights)
+            
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
         return {"loss": loss}
@@ -147,8 +168,9 @@ class GRULit(L.LightningModule):
     def evaluate(self, batch, stage=None):
         x = batch.get("x")
         y = batch.get("y")
+        lat_weights = batch.get("lat_weights")
 
-        x, y = self._prepare_data(x, y)
+        x, y, lat_weights = self._prepare_data(x, y, lat_weights)
         logits = self(x)
 
         y = y[:, -1, :]
@@ -157,7 +179,7 @@ class GRULit(L.LightningModule):
             loss = self._criterion(logits, y.to(torch.float32))
             preds = torch.sigmoid(logits)
         else:
-            loss = self._criterion(logits, y)
+            loss = self._criterion(logits, y, weights=lat_weights)
             preds = logits
         self.log(f"{stage}_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
@@ -179,8 +201,13 @@ class GRULit(L.LightningModule):
         self.evaluate(batch, "test")
 
     def predict_step(self, batch):
-        x = batch.get("x")
-        y = batch.get("y")
+
+        if len(batch)==1:
+            x = batch
+            y = None
+        else:
+            x = batch.get("x")
+            y = batch.get("y")
 
         x, y = self._prepare_data(x, y)
 

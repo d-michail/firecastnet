@@ -1,14 +1,14 @@
 #!/bin/bash
 
-#SBATCH --job-name=firecastnet
+#SBATCH --job-name=firetest
 #SBATCH --partition=obiwan
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
 #SBATCH --time=03:00:00
 #SBATCH --dependency=singleton
-#SBATCH --error=err-firecastnet.err
-#SBATCH --output=out-firecastnet.out
+#SBATCH --error=err-test.err
+#SBATCH --output=out-test.out
 #SBATCH --mem=80G
 
 # Activate Anaconda work environment
@@ -21,7 +21,7 @@ export PYTHONFAULTHANDLER=1
 MODEL_NAME="FireCastNet"
 CONFIG_FILE="configs/config-wandb.yaml"
 TIME="24"
-SHIFT="0"
+SHIFT="4"
 NAME="FCN-SeasBench-ts-${TIME}-shift-${SHIFT}"
 LOG_DIR="lightning_logs/${NAME}"
 CKPT_FILE="lightning_logs/${NAME}/checkpoints/last.ckpt"
