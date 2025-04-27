@@ -100,6 +100,10 @@ model:
     norm_type: LayerNorm
     do_concat_trick: false
     regression_loss: mse
+    cube_path: "cube.zarr"
+    lsm_filter_enable: false
+    lsm_var_name: "lsm"
+    lsm_threshold: 0.1
     lr: 0.001
     weight_decay: 0.00000001
     optimizer_apex: false
