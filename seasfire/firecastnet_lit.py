@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import torch
 import torch.nn as nn
+import xarray as xr
 
 from torchmetrics import (
     AUROC, 

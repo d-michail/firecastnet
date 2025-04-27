@@ -101,7 +101,7 @@ model:
     do_concat_trick: false
     regression_loss: mse
     cube_path: "cube.zarr"
-    lsm_filter_enable: false
+    lsm_filter_enable: true
     lsm_var_name: "lsm"
     lsm_threshold: 0.1
     lr: 0.001
