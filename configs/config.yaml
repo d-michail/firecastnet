@@ -59,7 +59,7 @@ trainer:
   reload_dataloaders_every_n_epochs: 0
   default_root_dir: null
 model:
-  class_path: FireCastNet
+  class_path: seasfire.firecastnet_lit.FireCastNetLit
   init_args:
     icospheres_graph_path: icospheres/icospheres_0_1_2_3_4_5_6.json.gz
     sp_res: 0.250
