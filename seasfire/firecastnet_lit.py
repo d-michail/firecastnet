@@ -447,14 +447,12 @@ class FireCastNetLit(L.LightningModule):
         return self._net(x)
 
     def training_step(self, batch, batch_idx):
-        if len(batch) == 3:
-            x, oci, y = batch
-            x, oci, y = self._prepare_data(x, oci, y)
-            logits = self(x, oci)
-        else:
-            x, y = batch
-            x, _, y = self._prepare_data(x, None, y)
-            logits = self(x)        
+        x = batch.get("x")
+        oci = batch.get("oci")
+        y = batch.get("y")
+
+        x, oci, y = self._prepare_data(x, oci, y)
+        logits = self(x, oci)
 
         logits = logits[:, -1, :, :]
         y = y[:, -1, :, :]
@@ -468,14 +466,12 @@ class FireCastNetLit(L.LightningModule):
         return {"loss": loss}
 
     def evaluate(self, batch, stage=None):
-        if len(batch) == 3:
-            x, oci, y = batch
-            x, oci, y = self._prepare_data(x, oci, y)
-            logits = self(x, oci)
-        else:
-            x, y = batch
-            x, _, y = self._prepare_data(x, None, y)
-            logits = self(x)
+        x = batch.get("x")
+        oci = batch.get("oci")
+        y = batch.get("y")
+
+        x, oci, y = self._prepare_data(x, oci, y)
+        logits = self(x, oci)
 
         logits = logits[:, -1, :, :]
         y = y[:, -1, :, :]
@@ -486,6 +482,7 @@ class FireCastNetLit(L.LightningModule):
         else:
             loss = self._criterion(logits, y)
             preds = logits
+
         self.log(f"{stage}_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
         metrics, metrics_names = self._metrics[stage]
@@ -506,14 +503,12 @@ class FireCastNetLit(L.LightningModule):
         self.evaluate(batch, "test")
 
     def predict_step(self, batch):
-        if len(batch) == 2:
-            x, oci = batch
-            x, oci, _ = self._prepare_data(x, oci, None)
-            logits = self(x, oci)
-        else:
-            x = batch
-            x, _, _ = self._prepare_data(x, None, None)
-            logits = self(x)
+        x = batch.get("x")
+        oci = batch.get("oci")
+        y = batch.get("y")
+
+        x, oci, y = self._prepare_data(x, oci, y)
+        logits = self(x, oci)
 
         logits = logits[:, -1, :, :]
 

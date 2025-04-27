@@ -580,7 +580,10 @@ class BatcherDataset(Dataset):
         if self.task == "classification":
             target = np.where(target != 0, 1, 0)
 
-        if self.oci_enabled and len(self.input_oci_vars) > 0:
-            return inputs, oci_inputs, target
+        result = {}
+        result["x"] = inputs
+        if self.oci_enabled and len(self.input_oci_vars) > 0: 
+            result["oci"] = oci_inputs
+        result["y"] = target
 
-        return inputs, target
+        return result
