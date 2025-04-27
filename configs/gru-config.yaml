@@ -58,7 +58,7 @@ trainer:
   reload_dataloaders_every_n_epochs: 0
   default_root_dir: null
 model:
-  class_path: GRU
+  class_path: seasfire.gru_lit.GRULit
   init_args:
     input_dim_grid_nodes: 11
     hidden_layers: 1
