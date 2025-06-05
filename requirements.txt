@@ -50,6 +50,7 @@ pandas==2.2.3
 partd==1.4.2
 propcache==0.3.1
 psutil==7.0.0
+pyproj==3.7.1
 python-dateutil==2.9.0.post0
 pytorch-lightning==2.5.0
 pytz==2025.2
@@ -57,6 +58,7 @@ PyYAML==6.0.2
 requests==2.32.3
 scikit-learn==1.6.1
 scipy==1.15.2
+shapely==2.1.0
 six==1.17.0
 sympy==1.13.3
 threadpoolctl==3.6.0
