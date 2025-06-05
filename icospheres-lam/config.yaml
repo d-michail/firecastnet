@@ -1,0 +1,9 @@
+# Example config file
+sphere:
+    refinement_order: 2
+    center: [0.0, 0.0, 0.0]
+refinement_targets:
+  - gfed_code: "SEAS"
+    refinement_order: 6
+    refinement_type: "uniform"
+    buffer_factor: 100
