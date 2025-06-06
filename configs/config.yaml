@@ -101,6 +101,24 @@ model:
     do_concat_trick: false
     regression_loss: mse
     cube_path: "cube.zarr"
+    gfed_region_enable_loss_weighting: false
+    gfed_region_var_name: "gfed_region"
+    gfed_region_weights: 
+      OCEAN: 0.0
+      BONA: 4.68
+      TENA: 3.92
+      CEAM: 3.85
+      NHSA: 3.64
+      SHSA: 1.84
+      EURO: 4.73
+      MIDE: 4.63
+      NHAF: 1.57
+      SHAF: 1.20
+      BOAS: 3.19
+      CEAS: 2.47
+      SEAS: 2.87
+      EQAS: 4.52
+      AUST: 3.03    
     lsm_filter_enable: true
     lsm_var_name: "lsm"
     lsm_threshold: 0.1

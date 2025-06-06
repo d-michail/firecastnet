@@ -16,7 +16,8 @@ from torchmetrics import (
     SymmetricMeanAbsolutePercentageError,
 )
 
-from .backbones.graphcast.loss.regression_area_loss import (
+from .backbones.loss.fcn_cls_loss import FCNClassificationLoss
+from .backbones.loss.regression_area_loss import (
     CellAreaWeightedL1LossFunction,
     CellAreaWeightedMSELossFunction,
     CellAreaWeightedHuberLossFunction,
@@ -72,6 +73,9 @@ class FireCastNetLit(L.LightningModule):
         task: str = "classification",
         regression_loss: str = "mse",
         cube_path: str = "cube.zarr",
+        gfed_region_enable_loss_weighting: bool = False,
+        gfed_region_var_name="gfed_region",
+        gfed_region_weights=None,        
         lsm_filter_enable=True,
         lsm_var_name: str = "lsm",
         lsm_threshold: float = 0.05,
@@ -105,6 +109,12 @@ class FireCastNetLit(L.LightningModule):
         )
 
         self._cube_path = cube_path
+
+        self._init_gfed_regions(
+            gfed_region_enable_loss_weighting,
+            gfed_region_var_name,
+            gfed_region_weights,
+        )
 
         self._init_lsm_filter(
             lsm_filter_enable,
@@ -264,6 +274,57 @@ class FireCastNetLit(L.LightningModule):
                 "Increased input dimensions to {}".format(self._input_dim_grid_nodes)
             )
 
+    def _init_gfed_regions(
+        self,
+        gfed_region_enable_loss_weighting,
+        gfed_region_var_name,
+        gfed_region_weights,
+        dtype=torch.float32,
+    ):
+        self._gfed_region_enable_loss_weighting = gfed_region_enable_loss_weighting
+
+        if not gfed_region_enable_loss_weighting:
+            return
+
+        logger.info("Enabling GFED region weighting")
+
+        logger.info("Opening cube zarr file: {}".format(self._cube_path))
+        cube = xr.open_zarr(self._cube_path, consolidated=False)
+        gfed_region = cube[gfed_region_var_name].values
+        gfed_region = torch.tensor(gfed_region, dtype=dtype)
+        cube.close()
+
+        # Map GFED region names to integers
+        region_name_to_int = {
+            "OCEAN": 0,
+            "BONA": 1,
+            "TENA": 2,
+            "CEAM": 3,
+            "NHSA": 4,
+            "SHSA": 5,
+            "EURO": 6,
+            "MIDE": 7,
+            "NHAF": 8,
+            "SHAF": 9,
+            "BOAS": 10,
+            "CEAS": 11,
+            "SEAS": 12,
+            "EQAS": 13,
+            "AUST": 14,
+        }
+
+        # Map GFED regions to weights
+        weight_map = torch.zeros_like(gfed_region, dtype=dtype)
+        for region_name, weight in gfed_region_weights.items():
+            region_int = region_name_to_int[region_name]
+            weight_map = torch.where(gfed_region == region_int, weight, weight_map)
+
+        self._gfed_region_weights = weight_map.unsqueeze(0)
+
+        logger.info(
+            "GFED regions tensor with shape: {}".format(self._gfed_region_weights)
+        )
+
     def _init_lsm_filter(
         self,
         lsm_filter_enable,
@@ -294,7 +355,13 @@ class FireCastNetLit(L.LightningModule):
         self._task = task
 
         if task == "classification":
-            self._criterion = nn.BCEWithLogitsLoss()
+            self._criterion = FCNClassificationLoss(
+                pixel_weights=(
+                    self._gfed_region_weights
+                    if self._gfed_region_enable_loss_weighting
+                    else None
+                ), 
+            )
             self._metrics_names = ["auc", "f1", "auprc"]
             self._val_metrics = nn.ModuleList(
                 [
