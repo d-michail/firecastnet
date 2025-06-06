@@ -202,7 +202,7 @@ class ConvLSTMLit(L.LightningModule):
         logger.info(f"Using {optimizer.__class__.__name__} optimizer")
 
         if self._max_epochs <= 10:
-            logger.warn(f"Max epochs {self._max_epochs} should be larger that 10")
+            logger.warning(f"Max epochs {self._max_epochs} should be larger that 10")
         lr_scheduler1 = torch.optim.lr_scheduler.LinearLR(
             optimizer, start_factor=0.3, end_factor=1, total_iters=10
         )

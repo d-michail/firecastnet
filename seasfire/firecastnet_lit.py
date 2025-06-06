@@ -545,8 +545,9 @@ class FireCastNetLit(L.LightningModule):
         y = batch.get("y")
         clima = batch.get("clima")
         x, oci, y, clima = self._prepare_data(x, oci, y, clima)
-        logits = self(x, oci)
 
+        logits = self(x, oci)
+        
         logits = logits[:, -1, :, :]
         y = y[:, -1, :, :]
         if clima is not None:
@@ -566,6 +567,7 @@ class FireCastNetLit(L.LightningModule):
         y = batch.get("y")
         clima = batch.get("clima")
         x, oci, y, clima = self._prepare_data(x, oci, y, clima)
+
         logits = self(x, oci)
 
         logits = logits[:, -1, :, :]
@@ -579,6 +581,7 @@ class FireCastNetLit(L.LightningModule):
         else:
             loss = self._criterion(logits, y)
             preds = logits
+
         self.log(f"{stage}_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
         metrics, metrics_names = self._metrics[stage]
@@ -610,6 +613,7 @@ class FireCastNetLit(L.LightningModule):
         clima = batch.get("clima")
 
         x, oci, y, clima = self._prepare_data(x, oci, y, clima)
+
         logits = self(x, oci)
 
         logits = logits[:, -1, :, :]

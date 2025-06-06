@@ -91,7 +91,7 @@ if __name__ == "__main__":
         type=str,
         action="store",
         dest="cube_path",
-        default="../cube.zarr",
+        default="cube.zarr",
         help="Cube path",
     )
     parser.add_argument(
