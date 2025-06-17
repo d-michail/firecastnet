@@ -113,7 +113,7 @@ def main(args):
 
         all_nan = np.isnan(prediction).all()
         if all_nan: 
-            logger.warn("All prediction values are NaN")
+            logger.warning("All prediction values are NaN")
 
     da = xr.DataArray(
         predictions,
@@ -126,6 +126,37 @@ def main(args):
     )
 
     da = da.where(cube[lsm_var] > 0.1, np.nan)
+
+    # Filter predictions by GFED region if specified
+    if args.gfed_region is not None:
+        logger.info(f"Filtering predictions for GFED region: {args.gfed_region}")
+        if "gfed_region" in cube:
+            # Map region name to integer code
+            region_name_to_int = {
+                "OCEAN": 0,
+                "BONA": 1,
+                "TENA": 2,
+                "CEAM": 3,
+                "NHSA": 4,
+                "SHSA": 5,
+                "EURO": 6,
+                "MIDE": 7,
+                "NHAF": 8,
+                "SHAF": 9,
+                "BOAS": 10,
+                "CEAS": 11,
+                "SEAS": 12,
+                "EQAS": 13,
+                "AUST": 14,
+            }
+            region_code = region_name_to_int.get(args.gfed_region)
+            if region_code is not None:
+                region_mask = (cube["gfed_region"].values == region_code)
+                da = da.where(region_mask, np.nan)
+            else:
+                logger.warning(f"GFED region '{args.gfed_region}' not found in mapping. No filtering applied.")
+        else:
+            logger.warning("Cube does not contain 'gfed_region' variable. No filtering applied.")
 
     output_var_name = f"{args.output_var_prefix}_{args.target_shift}"
     
@@ -207,6 +238,15 @@ if __name__ == "__main__":
         dest="output_path",
         default="predictions.zarr",
         help="Output path",
+    )
+    parser.add_argument(
+        "--gfed-region",
+        metavar="KEY",
+        type=str,
+        action="store",
+        dest="gfed_region",
+        default=None,
+        help="GFED region name to filter predictions (e.g., 'NHAF'). If not set, no filtering is applied.",
     )
     parser.add_argument("--debug", dest="debug", action="store_true")
     parser.add_argument("--no-debug", dest="debug", action="store_false")
