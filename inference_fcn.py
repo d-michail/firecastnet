@@ -105,9 +105,10 @@ def main(args):
             model.device
         )
         sample_tensor = sample_tensor.unsqueeze(0)
+        sample_as_dict = {"x": sample_tensor}
 
         with torch.no_grad():
-            prediction = model.predict_step(sample_tensor)
+            prediction = model.predict_step(sample_as_dict)
 
         prediction = prediction.cpu().numpy()
         predictions[t_index] = prediction.squeeze()
@@ -258,6 +259,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-lsm-filter", dest="lsm_filter_enabled", action="store_false")
     parser.add_argument("--debug", dest="debug", action="store_true")
     parser.add_argument("--no-debug", dest="debug", action="store_false")
+    parser.set_defaults(lsm_filter_enabled=True)
     args = parser.parse_args()
 
     main(args)
