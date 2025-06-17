@@ -116,6 +116,7 @@ class FireCastNetLit(L.LightningModule):
             gfed_region_weights,
         )
 
+        self.register_buffer("_lsm_mask", torch.empty(0), persistent=True)
         self._init_lsm_filter(
             lsm_filter_enable,
             lsm_var_name,
@@ -346,7 +347,7 @@ class FireCastNetLit(L.LightningModule):
         lsm_filter = cube[lsm_var_name].values
         lsm_filter = torch.tensor(lsm_filter, dtype=dtype).unsqueeze(0)
         lsm_mask = lsm_filter < lsm_threshold
-        self.register_buffer("_lsm_mask", lsm_mask)
+        self._lsm_mask = lsm_mask
         cube.close()
 
         logger.info("LSM filter/mask tensor with shape: {}".format(self._lsm_mask))

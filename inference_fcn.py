@@ -81,21 +81,22 @@ def main(args):
 
     # load model from checkpoint
     logger.info(f"Loading model from ckpt = {args.ckpt_path}")
-    model = FireCastNetLit.load_from_checkpoint(args.ckpt_path)
+    model = FireCastNetLit.load_from_checkpoint(
+        args.ckpt_path,
+        cube_path=args.cube_path,
+        lsm_filter_enable=args.lsm_filter_enabled,
+    )
     model.eval()
     model.dglTo(model.device)
 
     # prepare predictions for storage
-    predictions = np.zeros_like(
-        cube[target_var]
-    )
+    predictions = np.zeros_like(cube[target_var])
 
     logger.info(f"Will create samples for [{args.start_time}, {args.end_time}]")
     ds_selected = ds.sel(time=slice(args.start_time, args.end_time))
     ds_selected_time_indexes = ds.get_index("time").get_indexer(ds_selected["time"])
 
-
-    for t_index in tqdm(ds_selected_time_indexes, desc="Processing samples"):        
+    for t_index in tqdm(ds_selected_time_indexes, desc="Processing samples"):
         if t_index < args.timeseries - 1:
             continue
 
@@ -112,7 +113,7 @@ def main(args):
         predictions[t_index] = prediction.squeeze()
 
         all_nan = np.isnan(prediction).all()
-        if all_nan: 
+        if all_nan:
             logger.warning("All prediction values are NaN")
 
     da = xr.DataArray(
@@ -151,18 +152,23 @@ def main(args):
             }
             region_code = region_name_to_int.get(args.gfed_region)
             if region_code is not None:
-                region_mask = (cube["gfed_region"].values == region_code)
+                region_mask = cube["gfed_region"].values == region_code
                 da = da.where(region_mask, np.nan)
             else:
-                logger.warning(f"GFED region '{args.gfed_region}' not found in mapping. No filtering applied.")
+                logger.warning(
+                    f"GFED region '{args.gfed_region}' not found in mapping. No filtering applied."
+                )
         else:
-            logger.warning("Cube does not contain 'gfed_region' variable. No filtering applied.")
+            logger.warning(
+                "Cube does not contain 'gfed_region' variable. No filtering applied."
+            )
 
     output_var_name = f"{args.output_var_prefix}_{args.target_shift}"
-    
+
     logger.info(f"Creating new zarr store at {args.output_path}")
     ds_output = xr.Dataset({output_var_name: da})
     ds_output.to_zarr(args.output_path, mode="w")
+
 
 if __name__ == "__main__":
 
@@ -229,7 +235,7 @@ if __name__ == "__main__":
         dest="output_var_prefix",
         default="predictions_cls_ba",
         help="Prediction variable prefix",
-    )        
+    )
     parser.add_argument(
         "--output-path",
         metavar="KEY",
@@ -248,6 +254,8 @@ if __name__ == "__main__":
         default=None,
         help="GFED region name to filter predictions (e.g., 'NHAF'). If not set, no filtering is applied.",
     )
+    parser.add_argument("--lsm-filter", dest="lsm_filter_enabled", action="store_true")
+    parser.add_argument("--no-lsm-filter", dest="lsm_filter_enabled", action="store_false")
     parser.add_argument("--debug", dest="debug", action="store_true")
     parser.add_argument("--no-debug", dest="debug", action="store_false")
     args = parser.parse_args()
