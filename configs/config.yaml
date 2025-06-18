@@ -118,7 +118,9 @@ model:
       CEAS: 2.47
       SEAS: 2.87
       EQAS: 4.52
-      AUST: 3.03    
+      AUST: 3.03
+    val_gfed_regions: []
+    test_gfed_regions: []
     lsm_filter_enable: true
     lsm_var_name: "lsm"
     lsm_threshold: 0.1
