@@ -163,3 +163,8 @@ cython_debug/
 #
 cube_mean_std_dict*.json
 lightning_logs/
+
+# Venv specific
+/bin
+/share
+/lib*
