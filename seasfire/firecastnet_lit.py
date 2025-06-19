@@ -332,6 +332,26 @@ class FireCastNetLit(L.LightningModule):
             "GFED regions tensor with shape: {}".format(self._gfed_region_weights)
         )
 
+    def _map_region_to_int(self, region: str) -> int:
+        region_name_to_int = {
+            "OCEAN": 0,
+            "BONA": 1,
+            "TENA": 2,
+            "CEAM": 3,
+            "NHSA": 4,
+            "SHSA": 5,
+            "EURO": 6,
+            "MIDE": 7,
+            "NHAF": 8,
+            "SHAF": 9,
+            "BOAS": 10,
+            "CEAS": 11,
+            "SEAS": 12,
+            "EQAS": 13,
+            "AUST": 14,
+        }
+        return region_name_to_int.get(region, -1)  # Default to -1 for unknown regions
+
     def _init_lsm_filter(
         self,
         lsm_filter_enable,
@@ -695,23 +715,3 @@ class FireCastNetLit(L.LightningModule):
     def dglTo(self, device):
         """Move all DGL graphs into a particular device."""
         self._net.dglTo(device)
-
-    def _map_region_to_int(self, region: str) -> int:
-        region_name_to_int = {
-            "OCEAN": 0,
-            "BONA": 1,
-            "TENA": 2,
-            "CEAM": 3,
-            "NHSA": 4,
-            "SHSA": 5,
-            "EURO": 6,
-            "MIDE": 7,
-            "NHAF": 8,
-            "SHAF": 9,
-            "BOAS": 10,
-            "CEAS": 11,
-            "SEAS": 12,
-            "EQAS": 13,
-            "AUST": 14,
-        }
-        return region_name_to_int.get(region, -1)  # Default to -1 for unknown regions
