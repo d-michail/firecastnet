@@ -55,6 +55,7 @@ A few helper scripts can be found in this repository.
  
  - `inference_fcn.py`: Given a cube and a FireCastNet model checkpoint, perform inference and a cube containing the predictions as a variable.
  - `compute_metrics.py`: Given a cube with a variable with predictions (for classification), output global and per GFED region metrics.
+ - `compute_cls_baselines.py`: Compute classification baselines and output them as variables in a cube.
 
 ## Acknowledgements
 
