@@ -49,6 +49,13 @@ Download the [SeasFire dataset](https://zenodo.org/record/8055879) from zenodo. 
 
 Unzip the dataset to a folder of your choice. Reference the dataset from the config file.
 
+## Tools 
+
+A few helper scripts can be found in this repository. 
+ 
+ - `inference_fcn.py`: Given a cube and a FireCastNet model checkpoint, perform inference and a cube containing the predictions as a variable.
+ - `compute_metrics.py`: Given a cube with a variable with predictions (for classification), output global and per GFED region metrics.
+
 ## Acknowledgements
 
 This work is part of the SeasFire project, which deals with
