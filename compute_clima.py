@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import logging
 import xarray as xr
 import numpy as np
@@ -23,6 +21,7 @@ def main(args):
     octodays = list(range(1, 47)) * (2021 - 2001 + 1)
     da_octodays = xr.DataArray(octodays, dims="time", coords={"time": cube["time"]})
     cube["octodays"] = da_octodays
+
     training_years = slice("2002-01-01", "2018-01-01")
     variable = "gwis_ba"
 
@@ -80,6 +79,30 @@ def main(args):
         }
     )
     output.to_zarr(args.output_path, mode="w")
+
+    # ---------------------------------------------------------------------
+    # === NEW BLOCK: fire occurrence prediction baselines ================
+    # ---------------------------------------------------------------------
+    fire_bool = cube[variable] > 0
+    fire_int = fire_bool.astype("int8").assign_coords(octodays=cube["octodays"])
+
+    prev_fire_count = fire_int.groupby("octodays").cumsum("time") - fire_int
+    prev_total_years = xr.ones_like(fire_int).groupby("octodays").cumsum("time") - 1
+
+    pred_fire_any = (prev_fire_count > 0).astype("uint8")
+    pred_fire_majority = (
+        prev_fire_count > (prev_total_years - prev_fire_count)
+    ).astype("uint8")
+
+    # Append these two to disk as a new Zarr dataset using same path
+    fire_baselines = xr.Dataset(
+        {
+            "pred_fire_any": pred_fire_any,
+            "pred_fire_majority": pred_fire_majority,
+        }
+    )
+    fire_baselines.to_zarr(args.output_path, mode="a")
+    # ---------------------------------------------------------------------
 
 
 if __name__ == "__main__":
