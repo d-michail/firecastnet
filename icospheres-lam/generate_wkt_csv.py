@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import shapely
 import shapely.wkt
+import argparse
 from sklearn.cluster import DBSCAN
 from shapely.geometry import Polygon, MultiPolygon
 from shapely import concave_hull
@@ -14,12 +15,11 @@ csv_dir = 'icospheres-lam/csv'
 def flip_coords(x, y):
     return y, x
 
-def get_country(country_name, filename=f"{csv_dir}/wkt.csv"):
+def get_country(country_name, filename=f"{csv_dir}/wkt_countries_continents.csv"):
     df = pd.read_csv(filename, encoding='latin1', keep_default_na=False, sep=',', quotechar='"')
     return df[df['NAME'] == country_name or df['SU_A3'] == country_name or df['SUBUNIT'] == country_name].iloc[0]
 
 def reshape_wkt_coords(wkt_shape):
-    # Remove the last coordinate (which duplicates the first in shapely)
     # Flip the coordinates to (lat, lon) format.........
     # Create polygon with unique coordinates
     if isinstance(wkt_shape, Polygon):
@@ -105,7 +105,6 @@ def format_countries_wkt_csv_file():
         index progress for GFED regions and warnings for regions where polygon
         creation fails.
     """
-    use_dbscan = False # Set to false to skip DBSCAN clustering and use concave hulls directly
     countries_csv = f"{csv_dir}/110m-admin-0-countries.csv"
     continents_csv = f"{csv_dir}/continent-country.csv"
     
@@ -170,7 +169,7 @@ def format_countries_wkt_csv_file():
 
     # --------- WKT BY GFED REGIONS ---------
     print("\nProcessing GFED regions...")
-    gfed_regions = xr.open_dataset("cube.zarr")["gfed_region"]
+    gfed_regions = xr.open_dataset("src/data/cube.zarr")["gfed_region"]
 
     matches = re.findall(r'(\d+)-([A-Z]+)', gfed_regions.description)
     # Extract region id and name and Remove the OCEAN region (0)
@@ -184,11 +183,9 @@ def format_countries_wkt_csv_file():
     gfed_map = {}
     for num, _ in gfed_areas:
         gfed_map[num] = []
-    
+
     # Extract the gfed_region at every latitude index
     for i in range(total_lats):
-        if i % 100 == 0 or i == total_lats - 1:
-            print(f"\tProcessing latitude index {i}/{total_lats - 1}")
         # Filter out the OCEAN region (0) too
         gfed_i = gfed_regions[i].where(gfed_regions[i] != 0, drop=True)
         lat = float(gfed_i.latitude.values)
@@ -202,10 +199,11 @@ def format_countries_wkt_csv_file():
     # Transform the points into WKT geometries
     gfed_wkt_map = {}
     for region_idx, points in gfed_map.items():
-        if use_dbscan: 
+        if args.no_dbscan: 
             poly = concave_hull(Polygon(points), 0.4)
             gfed_wkt_map[region_idx] = shapely.wkt.dumps(poly)
             continue
+
         # Use DBSCAN to cluster points into separate regions that contain Island countries (e.g., New Zealand)
         # Convert points to numpy array for DBSCAN
         points_array = np.array(points)
@@ -244,6 +242,17 @@ def format_countries_wkt_csv_file():
     # Save the extracted columns to a new CSV file
     output_filename = f"{csv_dir}/wkt.csv"
     wkt_df.to_csv(output_filename, index=False)
+    
+    print(f"\nWKT CSV file generated successfully: {output_filename}")
 
 if __name__ == "__main__":
+    args_parser = argparse.ArgumentParser(description="Generate WKT CSV file for countries, continents, and GFED regions.")
+    args_parser.add_argument(
+        "--no-dbscan",
+        action="store_true",
+        default=False,
+        dest="no_dbscan",
+        help="Skip DBSCAN clustering for GFED regions and use concave hulls directly."
+    )
+    args = args_parser.parse_args()
     format_countries_wkt_csv_file()

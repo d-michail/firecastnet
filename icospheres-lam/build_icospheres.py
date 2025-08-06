@@ -1,16 +1,13 @@
-import copy
 import json
-import traceback
-import yaml
 import pymesh
+import traceback
 import numpy as np
 import pandas as pd
-from shapely import convex_hull
+from shapely.affinity import translate
 from shapely.geometry import Polygon
 from shapely.wkt import loads as wkt_loads
-from buffers import buffer_polygon_by_percent, buffer_polygon_in_km
-from utils import get_icosahedron_geometry, polygon_wraps_around_antimeridian, to_lat_lon, to_sphere
-
+from preprocess import generate_initial_mesh, polygon_structures_preprocess
+from utils import undo_antimeridian_wrap, generate_icosphere_file_code, load_yaml, polygon_crosses_antimeridian, to_lat_lon, to_sphere
 
 DEFAULT_BUFFER_FACTOR = 50.0
 DEFAULT_REFINEMENT_TYPE = "none"
@@ -20,26 +17,52 @@ def argparse_setup():
     import argparse
     parser = argparse.ArgumentParser(description="Generate an icosphere with adaptive mesh refinement.")
     parser.add_argument(
-        "--config", type=str, default="./config.yaml",
+        "--config_path", 
+        default="./config.yaml",
+        dest="config_path",
         help="Path to the configuration file."
+    )
+    parser.add_argument(
+        "--gzip", 
+        action="store_true", 
+        dest="gzip",
+        default=False,
+        help="Compress the output file with gzip.")
+    parser.add_argument(
+        "--output_dir",
+        default="./icospheres/",
+        dest="output_dir",
+        help="Directory to save the generated icosphere files."
     )
     return vars(parser.parse_args())
 
+
 def find_intersecting_icosphere_faces(
-    icosphere_vertices_latlon, icosphere_faces, spherical_polygon
+    icosphere_vertices_latlon: np.ndarray,
+    icosphere_faces: list,
+    polygon: Polygon,
 ) -> tuple:
-    wraps_around = spherical_polygon["wraps_around"] if "wraps_around" in spherical_polygon else False
     intersections_idx = []
-    polygon = wkt_loads(spherical_polygon["wkt"])
-        
+    polygon_cross = polygon_crosses_antimeridian(polygon)
     # For each face of the icosphere, check if it intersects/contains the polygon
     for face_idx, face in enumerate(icosphere_faces):
-        triangle_coords = [icosphere_vertices_latlon[k] for k in face]
-        triangle = Polygon(triangle_coords)
-        if polygon.intersects(triangle) or polygon.contains(triangle):
-            if not wraps_around and polygon_wraps_around_antimeridian(triangle_coords):
-                continue
-            intersections_idx.append(face_idx)
+        triangle = Polygon([icosphere_vertices_latlon[k] for k in face])
+        triangle_cross = polygon_crosses_antimeridian(triangle)
+        if not polygon_cross and not triangle_cross:
+            if polygon.intersects(triangle) or polygon.contains(triangle):
+                intersections_idx.append(face_idx)
+        elif polygon_cross:
+            if triangle_cross:
+                triangle = undo_antimeridian_wrap(triangle)
+            offset_triangle_left = translate(triangle, yoff=-360)
+            offset_triangle_right = translate(triangle, yoff=360)
+            if polygon.intersects(triangle) or polygon.contains(triangle):
+                intersections_idx.append(face_idx)
+            elif polygon.intersects(offset_triangle_left) or polygon.contains(offset_triangle_left):
+                intersections_idx.append(face_idx)
+            elif polygon.intersects(offset_triangle_right) or polygon.contains(offset_triangle_right):
+                intersections_idx.append(face_idx)
+
     return intersections_idx
 
 # Vertice indices map
@@ -89,11 +112,11 @@ def mesh_stitch(mesh, submesh, intersecting_faces_idx, vertice_maps):
     new_mesh_faces = np.append(new_mesh_faces, submesh_faces, axis=0)
     new_mesh_vertices = np.append(mesh.vertices, submesh_vertices, axis=0)
     return pymesh.form_mesh(new_mesh_vertices, new_mesh_faces)
-
-def generate_icosphere(polygon_structures, refinement_order, center, radius, save_to_file=True):
+    
+def generate_icosphere(polygon_structures, mesh) -> dict:
     """
     Generates a structured icosphere with adaptive mesh refinement based on polygon regions.
-
+    
     Creates an icosphere mesh starting from a regular icosahedron, applies global subdivision,
     then performs selective refinement on faces intersecting with specified polygon regions.
     The process iteratively subdivides intersecting faces while maintaining mesh connectivity.
@@ -118,116 +141,100 @@ def generate_icosphere(polygon_structures, refinement_order, center, radius, sav
 
     Note:
         - Polygon structures are processed in order of increasing refinement_order
-        - Face intersection uses lat/lon coordinate transformation
-        - Handles antimeridian-crossing polygons with 'wraps_around' flag
+        - Face intersection, submesh creation and stitching is done in lat/lon
         - Output includes vertices, faces, and face centroids in JSON format
     """
-    # Get the initial icosahedron vertices and faces
-    vertices, faces = get_icosahedron_geometry()
-
-    # Initial mesh generation and subdivision
-    mesh = pymesh.form_mesh(vertices, faces)
-    mesh = pymesh.subdivide(mesh, refinement_order)
-    mesh = pymesh.form_mesh(to_sphere(mesh.vertices, radius=radius, center=center), mesh.faces)
     
+    def yield_polygons(ref_order, polygons):
+        for polygon in polygons:
+            if polygon["refinement_order"] == ref_order:
+                yield polygon
+            elif polygon["interest"] == False and polygon["refinement_order"] <= ref_order:
+                yield polygon
+
     try:
-        cur_mesh = mesh
         if len(polygon_structures) != 0:
-            # Sort the polygon structure by refinement order
-            polygon_structures = sorted(polygon_structures, key=lambda x: x["refinement_order"])
-            # Keep track of the current mesh and refinement order
-            cur_refinement_order = refinement_order
-            max_refinement_order = max(polygon["refinement_order"] for polygon in polygon_structures)
-            while max_refinement_order >= cur_refinement_order:
-                print("Current refinement order:", cur_refinement_order)
+            max_ref_order = max(p["refinement_order"] for p in polygon_structures)
+
+            for ref_order in range(1, max_ref_order + 1):
+                # Extract all unique faces of the icosphere that 
+                # intersect with the polygons of the current refinement order
+                print("\n\nCurrent refinement order:", ref_order)
                 intersecting_faces_idx = []
-                for polygon in polygon_structures:
-                    if polygon["refinement_order"] < cur_refinement_order:
-                        continue
-                    # Find the intersecting faces of the icosphere with the polygon
-                    intersecting_faces_idx.extend(find_intersecting_icosphere_faces(
-                        to_lat_lon(cur_mesh.vertices), cur_mesh.faces.tolist(), polygon
-                    ))
+                reserved_faces = []
+                for polygon in yield_polygons(ref_order, polygon_structures):
+                    print("Processing polygon target:", polygon["target_code"], 
+                          "with refinement order:", polygon["refinement_order"],
+                          "and interest:", polygon["interest"])
+
+                    if polygon["target_code"] == "global":
+                        intersecting_faces_idx = np.arange(len(mesh.faces))
+                    else:
+                        intersecting_faces = find_intersecting_icosphere_faces(
+                            to_lat_lon(mesh.vertices), 
+                            mesh.faces.tolist(),
+                            polygon["wkt"]
+                        )
+                        if polygon["interest"] == False:
+                            # When there is a target with negative interest then reserve/lock it's intersecting 
+                            # faces so that they don't get subdivided
+                            reserved_faces.extend(intersecting_faces)
+                        else:
+                            intersecting_faces_idx.extend(intersecting_faces)
+
+                # In case of global refinement there so need for selective refinement and stitching
+                if len(intersecting_faces_idx) == len(mesh.faces) and \
+                    len(reserved_faces) == 0:
+                    mesh = pymesh.subdivide(mesh, 1)
+                    mesh = pymesh.form_mesh(to_sphere(mesh.vertices, radius=radius, center=center), mesh.faces)
+                    continue
+                
                 intersecting_faces_idx = np.unique(intersecting_faces_idx)
-                intersecting_faces = np.array(cur_mesh.faces)[intersecting_faces_idx]
+
+
+                # If there are reserved faces, remove them from the intersecting faces
+                if len(reserved_faces) > 0:
+                    intersecting_faces_idx = np.setdiff1d(intersecting_faces_idx, reserved_faces)
+                intersecting_faces = np.array(mesh.faces)[intersecting_faces_idx]
 
                 # Subdivide the intersecting faces to create a submesh
-                submesh, vertice_maps = construct_submesh(cur_mesh, intersecting_faces, 1)
+                submesh, vertice_maps = construct_submesh(mesh, intersecting_faces, 1)
                 
                 # Perform the stitching of the submesh to the original mesh
-                cur_mesh = mesh_stitch(cur_mesh, submesh, intersecting_faces_idx, vertice_maps)
-
+                mesh = mesh_stitch(mesh, submesh, intersecting_faces_idx, vertice_maps)
+                
                 # Conversion of mesh to spherical shape
-                cur_mesh = pymesh.form_mesh(to_sphere(cur_mesh.vertices, radius=radius, center=center), cur_mesh.faces)
-
-                # There is a better way to do this
-                cur_refinement_order += 1
-
+                mesh = pymesh.form_mesh(to_sphere(mesh.vertices, radius=radius, center=center), mesh.faces)
+        
         # Save the final mesh to a json file
-        if save_to_file:
-            icospheres = {"vertices": [], "faces": []}
-            icospheres["order_" + str(0) + "_vertices"] = cur_mesh.vertices
-            icospheres["order_" + str(0) + "_faces"] = cur_mesh.faces
-            cur_mesh.add_attribute("face_centroid")
-            icospheres["order_" + str(0) + "_face_centroid"] = (
-                cur_mesh.get_face_attribute("face_centroid")
-            )
-            icospheres_dict = {
-                key: (value.tolist() if isinstance(value, np.ndarray) else value) for key, value in icospheres.items()
-            }
-            with open("icosphere.json", "w") as f:
-                json.dump(icospheres_dict, f)
+        icospheres = {"vertices": [], "faces": []}
+        icospheres["order_" + str(0) + "_vertices"] = mesh.vertices
+        icospheres["order_" + str(0) + "_faces"] = mesh.faces
+        mesh.add_attribute("face_centroid")
+        icospheres["order_" + str(0) + "_face_centroid"] = (
+            mesh.get_face_attribute("face_centroid")
+        )
+        icospheres_dict = {
+            key: (value.tolist() if isinstance(value, np.ndarray) else value) for key, value in icospheres.items()
+        }
+        
+        return icospheres_dict
     except Exception as e:
         print("An error occurred:", e)
         traceback.print_exc()
 
-def apply_buffers(polygon):
-    """
-    Apply buffers to the polygon based on the refinement order and buffer factor.
-    
-    :param polygon: The polygon structure to apply buffers to.
-    
-    :return: A list of new polygons with applied buffers.
-    """
-    buffer_factor = polygon["buffer_factor"]
-    buffer_unit = polygon["buffer_unit"]
-    polygon_ro = polygon["refinement_order"]
-    
-    new_polygons = []
-    if polygon["wkt"].startswith("MULTIPOLYGON"):
-        for poly in wkt_loads(polygon["wkt"]).geoms:
-            polygon_copy = copy.copy(polygon)
-            polygon_copy["wkt"] = poly.wkt
-            new_polygons.extend(apply_buffers(polygon_copy))
-    else:
-        for ro in range(refinement_order + 1, polygon_ro):
-            polygon_copy = copy.copy(polygon)
-            buffer_size = buffer_factor * (polygon_ro - ro)
-            if buffer_unit == "percent":
-                print(f"Expanding borders by {buffer_size}% for refinement order {ro}")
-                new_poly_wkt = buffer_polygon_by_percent(polygon["wkt"], buffer_size).wkt
-            elif buffer_unit == "km":
-                print(f"Expanding borders by {buffer_size}km for refinement order {ro}")
-                new_poly_wkt = buffer_polygon_in_km(polygon["wkt"], buffer_size).wkt
-            polygon_copy["wkt"] = new_poly_wkt
-            polygon_copy["refinement_order"] = ro
-            new_polygons.append(polygon_copy)
-
-    return new_polygons 
 
 if __name__ == "__main__":    
     # Load the argument parser
     args = argparse_setup()
 
     # Load the config from the specified path
-    config_path = args.get("config", "./config.yaml")
-    with open(config_path, "r") as f:
-        config = yaml.safe_load(f)
-
+    config = load_yaml(args["config_path"])
+    
     # Load the countries csv
     csv_path = "./csv/wkt.csv"
     df = pd.read_csv(csv_path, encoding='latin1', sep=',', quotechar='"', keep_default_na=False)
-        
+    
     # Load the sphere from the config
     sphere_config = config["sphere"]
     radius = sphere_config.get("radius", 1.0)
@@ -238,32 +245,56 @@ if __name__ == "__main__":
     refinement_targets = config.get("refinement_targets", [])
     polygon_structures = []
     for i, target in enumerate(refinement_targets):
-        if "country_code" in target:
-            target_wkt = df[df["SU_A3"] == target["country_code"]]["WKT"].values[0]
-        elif "continent_code" in target:
-            target_wkt = df[df["SU_A3"] == target["continent_code"]]["WKT"].values[0]
-        elif "gfed_code" in target:
-            target_wkt = df[df["SU_A3"] == target["gfed_code"]]["WKT"].values[0]
+        if "target_code" in target:
+            code = target["target_code"]
+            target_wkt = df[df["SU_A3"] == code]["WKT"].values[0]
         elif "custom_wkt" in target:
+            code = "custom"
             target_wkt = target["custom_wkt"]
+        else:
+            raise ValueError(f"Target {i} does not have a valid 'target_code' or 'custom_wkt' field.")
+        
         polygon_structures.append({
-            "wkt": target_wkt,
+            "target_code": code,
+            "wkt": wkt_loads(target_wkt),
             "refinement_order": target["refinement_order"],
             "refinement_type": target.get("refinement_type", DEFAULT_REFINEMENT_TYPE),
             "buffer_factor": target.get("buffer_factor", DEFAULT_BUFFER_FACTOR),
-            "buffer_unit": target.get("buffer_unit", DEFAULT_BUFFER_UNIT)
+            "buffer_unit": target.get("buffer_unit", DEFAULT_BUFFER_UNIT),
+            "interest": target.get("interest", True)
         })
-
-    # Do the necessary reshaping and/or buffering of the polygons
-    new_polygons = []
-    for polygon in polygon_structures:
-        refinement_type = polygon["refinement_type"]
-        if refinement_type == "uniform":
-            new_polygons.extend(apply_buffers(polygon))
-        elif refinement_type == "block":
-            polygon["wkt"] = convex_hull(wkt_loads(polygon["wkt"])).wkt
-
-    polygon_structures.extend(new_polygons)
-    print("Polygon structure:", polygon_structures)
     
-    generate_icosphere(polygon_structures, refinement_order, radius=radius, center=center)
+    for i in range(1, refinement_order + 1):
+        # Add a default polygon structure for the base refinement order
+        polygon_structures.append({
+            "target_code": "global",
+            "refinement_type": DEFAULT_REFINEMENT_TYPE,
+            "refinement_order": i,
+            "interest": True,
+        })
+    
+    file_code = generate_icosphere_file_code(polygon_structures, refinement_order)
+    icosphere_location = args['output_dir'] + f"{file_code}.json"
+
+    # Preprocess the polygon structures
+    polygon_structures = polygon_structures_preprocess(polygon_structures, base_refinement_order=refinement_order)
+
+    for poly in polygon_structures:
+        if "wkt" in poly and polygon_crosses_antimeridian(poly["wkt"]):
+            print(f"Polygon {poly['target_code']} with refinement order {poly['refinement_order']} crosses the antimeridian.")
+    mesh = generate_initial_mesh(0, radius=radius, center=center)
+    icospheres_dict = generate_icosphere(polygon_structures, mesh)
+    
+    # For debugging purposes, you can validate the mesh structure
+    # validate_mesh(file_code, icospheres_dict)
+
+    # Save the icosphere to a file
+    with open(icosphere_location, 'w') as f:
+        json.dump(icospheres_dict, f)
+        
+    # Optionally gzip the file
+    if args["gzip"] or config.get("gzip", False):
+        from utils import gzip_file
+        gzip_file(icosphere_location)
+
+    print(f"Generated icosphere saved to {icosphere_location}")

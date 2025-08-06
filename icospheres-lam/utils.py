@@ -1,12 +1,51 @@
 import math
+import shapely
 import numpy as np
 import pandas as pd
 from numpy.linalg import norm
+from shapely.ops import split
+from shapely.affinity import translate
+from shapely import MultiPolygon, Polygon
+from typing import List, Tuple, Union
 
-ANTIMERIDIAN_THRESHOLD = 180.0  
+MAX_LON = 180.0  
 GOLDEN_RATIO = (1.0 + math.sqrt(5.0)) / 2.0
 
-def to_cartesian(lat_lon):
+# GENERAL UTILS
+def load_yaml(filename: str):
+    import yaml
+    # Load the config from the specified path
+    with open(filename, "r") as f:
+        config = yaml.safe_load(f)
+    return config
+
+def generate_icosphere_file_code(polygon_structures, ref_order: int) -> str:
+    structure_code = "icosphere_s"+str(ref_order)
+    for p in polygon_structures:
+        if p["target_code"] == "global":
+            continue
+        structure_code += f"_{p['target_code']}_{p['refinement_order']}{p['refinement_type'][0]}"
+    return structure_code
+
+def gzip_file(filename: str):
+    """ Compress a file using gzip and return the compressed file name.
+    
+    Args:
+        filename (str): The name of the file to compress.
+        
+    Returns:
+        str: The name of the compressed file.
+    """
+    import gzip
+    import shutil
+    
+    compressed_filename = filename + '.gz'
+    with open(filename, 'rb') as f_in:
+        with gzip.open(compressed_filename, 'wb') as f_out:
+            shutil.copyfileobj(f_in, f_out)
+
+# CONVERSION UTILS
+def to_cartesian(lat_lon: np.ndarray) -> np.ndarray:
     """
     Convert latitude and longitude to 3D Cartesian coordinates.
     
@@ -25,7 +64,7 @@ def to_cartesian(lat_lon):
     
     return np.column_stack((x, y, z))
 
-def to_lat_lon(vertices):
+def to_lat_lon(vertices: np.ndarray) -> np.ndarray:
     """
     Convert an array of 3D Cartesian coordinates to latitude and longitude.
     
@@ -50,13 +89,13 @@ def to_lat_lon(vertices):
     latlon = np.column_stack((lat_deg, lon_deg))
     return latlon
 
-def to_sphere(vertices, radius=1, center=(0, 0, 0)):
+def to_sphere(vertices, radius=1, center=(0, 0, 0)) -> np.ndarray:
     """Convert vertices to spherical coordinates."""
     length = norm(vertices, axis=1).reshape((-1, 1))
     return vertices / length * radius + center
 
 
-def get_icosahedron_geometry():
+def get_icosahedron_geometry() -> Tuple[np.ndarray, np.ndarray]:
     """Get the initial icosahedron vertices and faces."""
     r = GOLDEN_RATIO
     vertices = np.array([
@@ -75,16 +114,65 @@ def get_icosahedron_geometry():
     return vertices, faces
 
 
-def polygon_wraps_around_antimeridian(triangle_vertices_latlon):
+# POLYGON UTILS
+def flatten_polygons(polygons: List[Union[Polygon, MultiPolygon]]) -> List[Polygon]:
+    """
+    Flatten a list of polygons or multipolygons into a single list of polygons.
+    
+    :param polygons: List of polygons or multipolygons.
+    
+    :return: Flattened list of polygons.
+    """
+    flattened = []
+    for polygon in polygons:
+        if isinstance(polygon, MultiPolygon):
+            flattened.extend(list(polygon.geoms))
+        elif isinstance(polygon, Polygon):
+            flattened.append(polygon)
+        else:
+            raise ValueError("Input must be a list of shapely Polygon or MultiPolygon objects.")
+    return flattened
+
+def undo_antimeridian_wrap(poly: Polygon) -> Polygon:
+    # Undo the antimeridian wrap by adjusting longitudes that cross the antimeridian.
+    coords = list(poly.exterior.coords)
+    coords_len = len(coords)
+    i = 0
+    while i < coords_len:
+        c1 = coords[i]
+        c2 = coords[(i + 1) % coords_len]
+        j = 0
+        if abs(c1[1] - c2[1]) > 180:
+            sign = -1 if c1[1] < 0 else 1
+            for j in range(i+1, coords_len):
+                if sign * coords[j][1] > 0:
+                    break
+                coords[j] = (coords[j][0], coords[j][1] + sign * 360)
+        i += j + 1
+    return shapely.Polygon(coords)
+
+def polygon_crosses_antimeridian(polygon: Union[Polygon, List[Tuple[float, float]]]) -> bool:
     """Check if polygon crosses the antimeridian (180° longitude)."""
-    lons = [lon for _, lon in triangle_vertices_latlon]
-    max_diff = max(lons) - min(lons)
-    return max_diff > ANTIMERIDIAN_THRESHOLD
-
-
-def get_wkt(country_name, filename='src/structured_icospheres/csv/wkt.csv'):
-    df = pd.read_csv(filename, encoding='latin1', keep_default_na=False)
-    country = df[df['SU_A3'] == country_name]
-    if country.empty:
-        raise ValueError(f"Country {country_name} not found in the dataset.")
-    return country.iloc[0]
+    if isinstance(polygon, Polygon):
+        # For Shapely Polygon with (lat, lon) input format:
+        # X coordinates store latitude, Y coordinates store longitude
+        lons = list(polygon.exterior.coords.xy[1])  # Y coordinates = longitude
+    elif isinstance(polygon, list):
+        # For coordinate lists in (lat, lon) format, longitude is at index 1
+        lons = [coord[1] for coord in polygon]
+    else:
+        raise ValueError("Input must be a shapely Polygon or a list of (lat, lon) tuples.")
+    
+    # Check if the lons exceed the maximum longitude threshold
+    if max(lons) > MAX_LON or min(lons) < -MAX_LON:
+        return True
+    
+    # Check if any edge crosses the antimeridian
+    for i in range(len(lons)):
+        lon1 = lons[i]
+        lon2 = lons[(i + 1) % len(lons)]
+        # If the longitude difference is greater than 180°, it likely crosses the antimeridian
+        if abs(lon1 - lon2) > MAX_LON:
+            return True
+    
+    return False
