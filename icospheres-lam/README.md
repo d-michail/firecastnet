@@ -14,8 +14,9 @@ docker build -t custom-pymesh:py3.7 -f Dockerfile .
 ## Build the icosphere with from a config file
 
 ```Bash
-docker run -it --rm -v `pwd`:/models custom-pymesh:py3.7 /bin/bash
-cd /models
+cd seasfire/icospheres-lam
+docker run -it --rm -v `pwd`:/icospheres custom-pymesh:py3.7 /bin/bash
+cd /icospheres
 python ./build_icospheres.py
 exit
 ```
@@ -38,6 +39,8 @@ refinement_targets:
     refinement_buffer: 50.0
     # Refinement buffer unit of measure (Default: "km")
     refinement_buffer_unit: "km | percent"
+    # Interest of the target (Default: true)
+    interest: true
 
   # Continent codes from ISO 3166-1
   - country_code: "AF | AN | AS | EU | NA | OC | SA" 
@@ -50,4 +53,6 @@ refinement_targets:
   # Bring your own Polygon/MultiPolygon WKT
   - custom_wkt: "..." 
     ... # Same structure as above
+gzip: true # Whether to gzip the output json file (default is false)
+
 ```

@@ -194,20 +194,17 @@ class GraphBuilder:
         cartesian_grid = latlon2xyz(self.lat_lon_grid_flat)
         n_nbrs = 1
         neighbors = NearestNeighbors(n_neighbors=n_nbrs).fit(
-            self.icospheres["order_" + str(self.max_order) + "_face_centroid"]
+            self.icospheres["order_" + str(self.max_order) + "_vertices"]
         )
         _, indices = neighbors.kneighbors(cartesian_grid)
-        indices = indices.flatten()
-
-        src = [
-            p
-            for i in indices
-            for p in self.icospheres["order_" + str(self.max_order) + "_faces"][i]
-        ]
-        dst = [i for i in range(len(cartesian_grid)) for _ in range(3)]
+        
+        indices = indices.flatten()  # take only the first neighbor
+        src = indices
+        dst = np.arange(len(cartesian_grid))
         m2g_graph = create_heterograph(
             src, dst, ("mesh", "m2g", "grid"), dtype=torch.int32
         )  # number of edges is 3,114,720, exactly matches with the paper
+
         m2g_graph.srcdata["pos"] = torch.tensor(
             self.icospheres["order_" + str(self.max_order) + "_vertices"],
             dtype=torch.float32,
@@ -228,5 +225,4 @@ class GraphBuilder:
         m2g_graph.edata["x"] = m2g_graph.edata["x"].to(dtype=self.dtype)
 
         logger.info("mesh2grid bipartite graph={}".format(m2g_graph))
-
         return m2g_graph

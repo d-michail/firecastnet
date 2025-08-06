@@ -1,9 +1,9 @@
-# Example config file
 sphere:
-    refinement_order: 2
+    refinement_order: 3
     center: [0.0, 0.0, 0.0]
 refinement_targets:
-  - gfed_code: "SEAS"
+  - target_code: "SHSA"
     refinement_order: 6
     refinement_type: "uniform"
-    buffer_factor: 100
+    buffer_factor: 400
+gzip: true
