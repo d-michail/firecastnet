@@ -1,12 +1,10 @@
 import math
 import shapely
 import numpy as np
-import pandas as pd
 from numpy.linalg import norm
-from shapely.ops import split
-from shapely.affinity import translate
 from shapely import MultiPolygon, Polygon
 from typing import List, Tuple, Union
+from PolygonStructure import PolygonStructure
 
 MAX_LON = 180.0  
 GOLDEN_RATIO = (1.0 + math.sqrt(5.0)) / 2.0
@@ -19,12 +17,12 @@ def load_yaml(filename: str):
         config = yaml.safe_load(f)
     return config
 
-def generate_icosphere_file_code(polygon_structures, ref_order: int) -> str:
+def generate_icosphere_file_code(polygon_structures: List[PolygonStructure], ref_order: int) -> str:
     structure_code = "icosphere_s"+str(ref_order)
     for p in polygon_structures:
-        if p["target_code"] == "global":
+        if p.target_code == "global":
             continue
-        structure_code += f"_{p['target_code']}_{p['refinement_order']}{p['refinement_type'][0]}"
+        structure_code += f"_{p.target_code}_{p.refinement_order}{p.refinement_type[0]}"
     return structure_code
 
 def gzip_file(filename: str):

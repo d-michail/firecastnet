@@ -1,68 +1,67 @@
-import copy
 import pymesh
 import numpy as np
+from typing import List
 from shapely import convex_hull
 from shapely.geometry import Polygon, MultiPolygon
-from shapely.wkt import loads as wkt_loads
-from buffers import buffer_polygon_by_percent, buffer_polygon_in_km
+from buffers import buffer_polygon
 from utils import get_icosahedron_geometry, to_cartesian, to_lat_lon, to_sphere
+from PolygonStructure import PolygonStructure
 
-def apply_buffers(polygon, base_refinement_order=0):
+def apply_buffers(polygon: PolygonStructure, base_refinement_order: int = 0) -> List[PolygonStructure]:
     """
     Apply buffers to the polygon based on the refinement order and buffer factor.
     
     :param polygon: The polygon structure to apply buffers to.
+    :param base_refinement_order: The base refinement order.
     
     :return: A list of new polygons with applied buffers.
     """
-    buffer_factor = polygon["buffer_factor"]
-    buffer_unit = polygon["buffer_unit"]
-    polygon_ro = polygon["refinement_order"]
-    print(f"Processing polygon for polygon {polygon['target_code']}")
+    
+    buffer_factor = polygon.buffer_factor
+    buffer_unit = polygon.buffer_unit
+    polygon_ref_order = polygon.refinement_order
+
     new_polygons = []
-    for ro in range(base_refinement_order + 1, polygon_ro):
-        polygon_copy = copy.copy(polygon)
-        buffer_size = buffer_factor * (polygon_ro - ro)
-        if buffer_unit == "percent":
-            # print(f"Expanding borders by {buffer_size}% for refinement order {ro}")
-            new_polygon = buffer_polygon_by_percent(polygon["wkt"], buffer_size)
-        elif buffer_unit == "km":
-            # print(f"Expanding borders by {buffer_size}km for refinement order {ro}")
-            new_polygon = buffer_polygon_in_km(polygon["wkt"], buffer_size)
-        polygon_copy["wkt"] = new_polygon
-        polygon_copy["refinement_order"] = ro
-        new_polygons.append(polygon_copy)
+    for ref_order in range(base_refinement_order + 1, polygon_ref_order):
+        buffer_size = buffer_factor * (polygon_ref_order - ref_order)
+        new_polygon = buffer_polygon(polygon.wkt, buffer_size, buffer_unit)
+        
+        new_poly_struct = polygon.copy()
+        new_poly_struct.wkt = new_polygon
+        new_poly_struct.refinement_order = ref_order
+
+        new_polygons.append(new_poly_struct)
     
     return new_polygons
 
-def flatten_polygon_structures(polygon_structures) -> list:
+def flatten_polygon_structures(polygon_structures: List[PolygonStructure]) -> List[PolygonStructure]:    
     flattened = []
-    for polygon_s in polygon_structures:
+    for polygon_struct in polygon_structures:
         # In case of a global polygon, we don't need to flatten it
-        if "wkt" not in polygon_s:
-            flattened.append(polygon_s)
+        if polygon_struct.wkt is None:
+            flattened.append(polygon_struct)
             continue
 
-        poly = polygon_s["wkt"]
+        poly = polygon_struct.wkt
 
         if isinstance(poly, MultiPolygon):
-            for poly in poly.geoms:
-                p_copy = copy.copy(polygon_s)
-                p_copy["wkt"] = poly
-                flattened.append(p_copy)
+            for sub_polygon in poly.geoms:
+                new_poly_struct = polygon_struct.copy()
+                new_poly_struct.wkt = sub_polygon
+                flattened.append(new_poly_struct)
         elif isinstance(poly, Polygon):
-            flattened.append(polygon_s)
+            flattened.append(polygon_struct)
     return flattened
 
-def polygon_structures_preprocess(polygon_structures, base_refinement_order=0):
+def polygon_structures_preprocess(polygon_structures: List['PolygonStructure'], base_refinement_order: int = 0) -> List['PolygonStructure']:
     # Do the necessary reshaping and/or buffering of the polygons
     new_polygons = []
     for polygon in polygon_structures:
-        refinement_type = polygon["refinement_type"]
+        refinement_type = polygon.refinement_type
         if refinement_type == "uniform":
             new_polygons.extend(apply_buffers(polygon, base_refinement_order))
         elif refinement_type == "block":
-            polygon["wkt"] = convex_hull(wkt_loads(polygon["wkt"]))
+            polygon.wkt = convex_hull(polygon.wkt)
 
     polygon_structures.extend(new_polygons)
 
@@ -70,13 +69,13 @@ def polygon_structures_preprocess(polygon_structures, base_refinement_order=0):
     polygon_structures = flatten_polygon_structures(polygon_structures)
     
     # Sort the polygon structure by refinement order
-    polygon_structures = sorted(polygon_structures, key=lambda x: x["refinement_order"])
+    polygon_structures = sorted(polygon_structures, key=lambda x: x.refinement_order)
 
     print(polygon_structures)
     return polygon_structures
 
 e = 1e-5
-def generate_initial_mesh(refinement_order, radius=1.0, center=(0.0, 0.0, 0.0)):
+def generate_initial_mesh(refinement_order=0, radius=1.0, center=(0.0, 0.0, 0.0)):
     # Get the initial icosahedron vertices and faces
     vertices, faces = get_icosahedron_geometry()
 

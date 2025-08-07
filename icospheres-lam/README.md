@@ -14,10 +14,16 @@ docker build -t custom-pymesh:py3.7 -f Dockerfile .
 ## Build the icosphere with from a config file
 
 ```Bash
-cd seasfire/icospheres-lam
+cd icospheres-lam
 docker run -it --rm -v `pwd`:/icospheres custom-pymesh:py3.7 /bin/bash
+
+# Inside the Docker container
 cd /icospheres
+# Build the icosphere using the default config file
 python ./build_icospheres.py
+# Or specify the config file and/or output directory
+python ./build_icospheres.py --config config.yaml --out_dir ./icospheres/
+
 exit
 ```
 
@@ -25,12 +31,15 @@ To configure the icosphere build process, you can edit the `config.yaml` file th
 
 ```yaml
 sphere:
-    refinement_order: 3 # The refinement order of the sphere (default is 3)
-    radius: 1.0 # The radius of the sphere (default is Φ phi = 1.6180339887)
-    center: [0.0, 0.0, 0.0] # The center of the sphere (default is [0.0, 0.0, 0.0])
+    # The refinement order of the sphere (default is 3)
+    refinement_order: 3 
+    # The radius of the sphere (default is 1.0)
+    radius: 1.0 
+    # The center of the sphere (default is [0.0, 0.0, 0.0])
+    center: [0.0, 0.0, 0.0] 
 refinement_targets:
   # Alpha-3 codes from ISO 3166-1
-  - country_code: "USA" 
+  - target_code: "USA" 
     # The final refinement order of the target
     refinement_order: 5 
     # The type of refinement to apply (Default: "none")
@@ -43,11 +52,11 @@ refinement_targets:
     interest: true
 
   # Continent codes from ISO 3166-1
-  - country_code: "AF | AN | AS | EU | NA | OC | SA" 
+  - target_code: "AF | AN | AS | EU | NA | OC | SA" 
     ... # Same structure as above
   
   # GFED region codes
-  - gfed_code: "BONA | TENA | CEAM | NHSA | SHSA | EURO | MIDE | NHAF | SHAF | BOAS | CEAS | SEAS | EQAS | AUST"
+  - target_code: "BONA | TENA | CEAM | NHSA | SHSA | EURO | MIDE | NHAF | SHAF | BOAS | CEAS | SEAS | EQAS | AUST"
     ... # Same structure as above
   
   # Bring your own Polygon/MultiPolygon WKT
