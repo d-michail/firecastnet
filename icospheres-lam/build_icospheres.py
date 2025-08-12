@@ -9,7 +9,7 @@ from shapely.affinity import translate
 from shapely.geometry import Polygon
 from shapely.wkt import loads as wkt_loads
 from preprocess import generate_initial_mesh, polygon_structures_preprocess
-from utils import undo_antimeridian_wrap, generate_icosphere_file_code, load_yaml, polygon_crosses_antimeridian, to_lat_lon, to_sphere
+from utils import undo_antimeridian_wrap, generate_icosphere_file_code, load_yaml, polygon_crosses_antimeridian, to_lat_lon, to_sphere, mesh_to_dict
 
 def argparse_setup():
     import argparse
@@ -89,7 +89,7 @@ def mesh_stitch(mesh, submesh, intersecting_faces_idx, vertice_maps):
     for face in submesh.faces:
         face_arr = []
         for vert_idx in face:
-            # If the vertex is in the original mesh, use its original index
+            # If the vertex is in the original mesh, use it's original index
             # Otherwise, use the new index from the submesh
             if vert_idx in vertice_maps["stm"]:
                 value = vertice_maps["stm"][vert_idx]
@@ -104,8 +104,8 @@ def mesh_stitch(mesh, submesh, intersecting_faces_idx, vertice_maps):
     new_mesh_faces = np.append(new_mesh_faces, submesh_faces, axis=0)
     new_mesh_vertices = np.append(mesh.vertices, submesh_vertices, axis=0)
     return pymesh.form_mesh(new_mesh_vertices, new_mesh_faces)
-    
-def generate_icosphere(polygon_structures: List[PolygonStructure], mesh) -> Dict[str, Any]:
+
+def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, save_layers: bool) -> Dict[str, Any]:
     """
     Generates an icosphere with adaptive mesh refinement based on polygon regions.
     
@@ -119,6 +119,7 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh) -> Dict
             refinement regions, each containing target geometry, refinement order,
             and refinement parameters.
         mesh: PyMesh mesh object representing the initial icosphere.
+        save_layers (bool): Flag indicating whether to save intermediate mesh layers.
 
     Returns:
         Dict[str, Any]: Dictionary containing mesh data with keys:
@@ -132,7 +133,7 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh) -> Dict
         - Handles antimeridian-crossing polygons with special logic
         - Reserved faces (interest=False) are excluded from subdivision
     """
-    
+
     def yield_polygons(ref_order: int, polygons: List[PolygonStructure]):
         for polygon in polygons:
             if polygon.refinement_order == ref_order:
@@ -140,6 +141,9 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh) -> Dict
             elif polygon.interest == False and polygon.refinement_order <= ref_order:
                 yield polygon
 
+
+    mesh_layers = []
+    intersecting_mesh_layers = [None]
     try:
         if len(polygon_structures) != 0:
             max_ref_order = max(p.refinement_order for p in polygon_structures)
@@ -150,6 +154,10 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh) -> Dict
                 print("\n\nCurrent refinement order:", ref_order)
                 intersecting_faces_idx = []
                 reserved_faces = []
+                # Make a copy of mesh and append it to mesh_layers
+                if save_layers:
+                    mesh_layers.append(pymesh.form_mesh(mesh.vertices, mesh.faces))
+ 
                 for polygon in yield_polygons(ref_order, polygon_structures):
                     print("Processing polygon target:", polygon.target_code, 
                           "with refinement order:", polygon.refinement_order,
@@ -175,15 +183,17 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh) -> Dict
                     len(reserved_faces) == 0:
                     mesh = pymesh.subdivide(mesh, 1)
                     mesh = pymesh.form_mesh(to_sphere(mesh.vertices, radius=radius, center=center), mesh.faces)
+                    intersecting_mesh_layers.append(None)
                     continue
                 
                 intersecting_faces_idx = np.unique(intersecting_faces_idx)
-
 
                 # If there are reserved faces, remove them from the intersecting faces
                 if len(reserved_faces) > 0:
                     intersecting_faces_idx = np.setdiff1d(intersecting_faces_idx, reserved_faces)
                 intersecting_faces = np.array(mesh.faces)[intersecting_faces_idx]
+
+                intersecting_mesh_layers.append(pymesh.form_mesh(mesh.vertices, intersecting_faces))
 
                 # Subdivide the intersecting faces to create a submesh
                 submesh, vertice_maps = construct_submesh(mesh, intersecting_faces, 1)
@@ -193,20 +203,17 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh) -> Dict
                 
                 # Conversion of mesh to spherical shape
                 mesh = pymesh.form_mesh(to_sphere(mesh.vertices, radius=radius, center=center), mesh.faces)
-        
+
+        # Append the final mesh to the mesh layers
+        mesh_layers.append(pymesh.form_mesh(mesh.vertices, mesh.faces))
+
         # Save the final mesh to a json file
-        icospheres = {"vertices": [], "faces": []}
-        icospheres["order_" + str(0) + "_vertices"] = mesh.vertices
-        icospheres["order_" + str(0) + "_faces"] = mesh.faces
-        mesh.add_attribute("face_centroid")
-        icospheres["order_" + str(0) + "_face_centroid"] = (
-            mesh.get_face_attribute("face_centroid")
-        )
-        icospheres_dict = {
-            key: (value.tolist() if isinstance(value, np.ndarray) else value) for key, value in icospheres.items()
-        }
-        
-        return icospheres_dict
+        icospheres_dict = mesh_to_dict([mesh])
+        mesh_layers_dict = mesh_to_dict(mesh_layers) if save_layers else None
+        intersecting_faces_mesh_dict = mesh_to_dict(intersecting_mesh_layers) if intersecting_mesh_layers else None
+
+        return icospheres_dict, mesh_layers_dict, intersecting_faces_mesh_dict
+
     except Exception as e:
         print("An error occurred:", e)
         traceback.print_exc()
@@ -243,29 +250,46 @@ if __name__ == "__main__":
             raise ValueError(f"Target {i} does not have a valid 'target_code' or 'custom_wkt' field.")
         target["wkt"] = wkt_loads(target_wkt)
         polygon_structures.append(PolygonStructure.from_dict(target))
-    
+
     for i in range(1, refinement_order + 1):
         # Add a default polygon structure for the base refinement order
         polygon_structures.append(PolygonStructure(
             target_code="global",
             refinement_order=i,
         ))
-    
+
     file_code = generate_icosphere_file_code(polygon_structures, refinement_order)
     icosphere_location = args['output_dir'] + f"{file_code}.json"
 
     # Preprocess the polygon structures
     polygon_structures = polygon_structures_preprocess(polygon_structures, base_refinement_order=refinement_order)
     mesh = generate_initial_mesh(radius=radius, center=center)
-    icospheres_dict = generate_icosphere(polygon_structures, mesh)
-    
+    icospheres_dict, mesh_layers_dict, intersecting_faces_mesh_dict = generate_icosphere(polygon_structures, mesh, save_layers=config.get("save_layers", False))
+
     # Save the icosphere to a file
     with open(icosphere_location, 'w') as f:
         json.dump(icospheres_dict, f)
-        
+    
+    # Save mesh layers if they were generated
+    if mesh_layers_dict:
+        layers_location = args['output_dir'] + f"{file_code}_layers.json"
+        with open(layers_location, 'w') as f:
+            json.dump(mesh_layers_dict, f)
+        print(f"Generated mesh layers saved to {layers_location}")
+
+    if intersecting_faces_mesh_dict:
+        faces_location = args['output_dir'] + f"{file_code}_intersecting_faces.json"
+        with open(faces_location, 'w') as f:
+            json.dump(intersecting_faces_mesh_dict, f)
+        print(f"Generated intersecting faces saved to {faces_location}")
+
     # Optionally gzip the file
     if config.get("gzip", False):
         from utils import gzip_file
         gzip_file(icosphere_location)
+        if mesh_layers_dict:
+            gzip_file(layers_location)
+        if intersecting_faces_mesh_dict:
+            gzip_file(faces_location)
 
     print(f"Generated icosphere saved to {icosphere_location}")

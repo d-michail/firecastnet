@@ -1,0 +1,191 @@
+# lightning.pytorch==2.2.1
+seed_everything: 17
+trainer:
+  accelerator: auto
+  strategy: auto
+  devices: auto
+  num_nodes: 1
+  precision: null
+  default_root_dir: ./lightning_logs/local_firecastnet/TENA
+  logger:
+  - class_path: lightning.pytorch.loggers.WandbLogger
+    init_args:
+      project: local_firecastnet
+      log_model: all
+      save_dir: ./lightning_logs
+  callbacks:
+  - class_path: lightning.pytorch.callbacks.ModelSummary
+    init_args: 
+      max_depth: 3
+  - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+    init_args:
+      logging_interval: 'epoch'
+  - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+    init_args:
+      dirpath: ./lightning_logs/local_firecastnet/TENA/checkpoints
+      filename: last
+      save_last: true
+      save_top_k: 0       # we’re only using this one to keep track of last
+  - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+    init_args:
+      dirpath: ./lightning_logs/local_firecastnet/TENA/checkpoints
+      filename: '{epoch:03d}-{val_auprc:.4f}'
+      monitor: val_auprc
+      mode: max
+      save_top_k: 1
+  - class_path: seasfire.callbacks.DGLGraphToDevice
+  fast_dev_run: false
+  max_epochs: 50
+  min_epochs: null
+  max_steps: -1
+  min_steps: null
+  limit_train_batches: null
+  max_time: null
+  limit_val_batches: null
+  limit_test_batches: null
+  limit_predict_batches: null
+  overfit_batches: 0.0
+  val_check_interval: null
+  check_val_every_n_epoch: 1
+  num_sanity_val_steps: 1
+  log_every_n_steps: null
+  enable_checkpointing: null
+  enable_progress_bar: null
+  enable_model_summary: null
+  accumulate_grad_batches: 1
+  gradient_clip_val: 0.5
+  gradient_clip_algorithm: 'norm'
+  deterministic: null
+  benchmark: null
+  inference_mode: true
+  use_distributed_sampler: true
+  profiler: null
+  detect_anomaly: false
+  barebones: false
+  plugins: null
+  sync_batchnorm: false
+  reload_dataloaders_every_n_epochs: 0
+model:
+  class_path: seasfire.firecastnet_lit.FireCastNetLit
+  init_args:
+    icospheres_graph_path: icospheres-lam/icospheres/icosphere_s3_TENA_6u.json.gz
+    sp_res: 0.250
+    max_lat: 89.875
+    min_lat: -89.875
+    max_lon: 179.875
+    min_lon: -179.875
+    lat_lon_static_data: true
+    timeseries_len: 24
+    embed_cube: true
+    embed_cube_width: 4
+    embed_cube_height: 4
+    embed_cube_time: 24
+    embed_cube_dim: 64
+    embed_cube_layer_norm: true
+    embed_cube_vit_enable: false
+    embed_cube_vit_patch_size: 36
+    embed_cube_vit_dim: 64
+    embed_cube_vit_mlp_dim: 64
+    embed_cube_vit_depth: 1
+    embed_cube_vit_heads: 4
+    embed_cube_ltae_enable: false
+    embed_cube_ltae_num_heads: 4
+    embed_cube_ltae_d_k: 16
+    embed_cube_sp_res: 1.0
+    embed_cube_max_lat: 89.5
+    embed_cube_min_lat: -89.5
+    embed_cube_max_lon: 179.5
+    embed_cube_min_lon: -179.5
+    input_dim_grid_nodes: 11
+    output_dim_grid_nodes: 16
+    input_dim_mesh_nodes: 3
+    input_dim_edges: 4
+    processor_layers: 12
+    hidden_layers: 1
+    hidden_dim: 64
+    aggregation: sum
+    norm_type: LayerNorm
+    do_concat_trick: false
+    regression_loss: mse
+    cube_path: "../cube_v3.zarr"
+    gfed_region_enable_loss_weighting: true
+    gfed_region_var_name: "gfed_region"
+    gfed_region_weights: 
+      OCEAN: 0.0
+      BONA: 0.0
+      SHSA: 0.0
+      CEAM: 0.0
+      NHSA: 0.0
+      TENA: 1.0
+      EURO: 0.0
+      MIDE: 0.0
+      NHAF: 0.0
+      SHAF: 0.0
+      BOAS: 0.0
+      CEAS: 0.0
+      SEAS: 0.0
+      EQAS: 0.0
+      AUST: 0.0    
+    val_gfed_regions:
+    - TENA
+    test_gfed_regions:
+    - TENA
+    lsm_filter_enable: true
+    lsm_var_name: "lsm"
+    lsm_threshold: 0.1
+    lr: 0.001
+    weight_decay: 0.00000001
+    optimizer_apex: false
+    optimizer_fused: true
+    display_model_example: false
+    display_model_example_precision: null
+data:
+  cube_path: "../cube_v3.zarr"
+  input_vars:
+  - mslp
+  - tp
+  - vpd
+  - sst
+  - t2m_mean
+  - ssrd
+  - swvl1
+  - lst_day
+  - ndvi
+  - pop_dens
+  static_vars:
+  - lsm
+  generate_only_positive_samples: true
+  oci_enabled: false
+  oci_input_vars: 
+  - oci_censo
+  - oci_ea
+  - oci_epo
+  - oci_gmsst
+  - oci_nao
+  - oci_nina34_anom
+  - oci_pdo
+  - oci_pna
+  - oci_soi
+  - oci_wp
+  oci_lag: 14
+  log_preprocess_input_vars: []
+  # - tp
+  # - pop_dens
+  target_var: gwis_ba
+  target_shift: 4
+  target_var_per_area: false
+  target_var_log_process: false
+  timeseries_weeks: 24
+  lat_dim: null 
+  lon_dim: null
+  lat_dim_overlap: null
+  lon_dim_overlap: null
+  time_dim_overlap: null
+  task: classification
+  batch_size: 1
+  num_workers: 2
+  pin_memory: false
+  load_cube_in_memory: false
+  train_random_sample: null
+  mean_std_dict_prefix: "cube"
+ckpt_path: null

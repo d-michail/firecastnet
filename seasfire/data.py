@@ -58,6 +58,7 @@ class SeasFireDataModule(L.LightningDataModule):
 
         logger.info("Opening local cube zarr file: {}".format(self._cube_path))
         self._cube = xr.open_zarr(self._cube_path, consolidated=False)
+
         if load_cube_in_memory:
             logger.info("Loading the whole cube in memory.")
             self._cube.load()
@@ -425,7 +426,7 @@ def sample_dataset(
             )
 
     if split == "train":
-        ds = ds.sel(time=slice("2002-01-01", "2018-01-01"))
+        ds = ds.sel(time=slice("2002-01-01", "2006-01-01"))
     elif split == "val":
         ds = ds.sel(time=slice("2018-01-01", "2019-01-01"))
     elif split == "test":
