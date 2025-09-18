@@ -1,7 +1,7 @@
 import numpy as np
 import json
 from scipy.spatial import KDTree
-from utils import to_lat_lon
+from .utils import to_lat_lon
 
 def _save_comprehensive_mesh_debug(mesh_name, icospheres_dict):
     """Save comprehensive mesh debug information."""

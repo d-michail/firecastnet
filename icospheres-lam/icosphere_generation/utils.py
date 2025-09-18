@@ -4,7 +4,7 @@ import numpy as np
 from numpy.linalg import norm
 from shapely import MultiPolygon, Polygon
 from typing import List, Tuple, Union
-from PolygonStructure import PolygonStructure
+from .PolygonStructure import PolygonStructure
 
 MAX_LON = 180.0  
 GOLDEN_RATIO = (1.0 + math.sqrt(5.0)) / 2.0

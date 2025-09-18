@@ -62,3 +62,13 @@ class PolygonStructure:
             interest=self.interest,
             wkt=self.wkt
         )
+    
+    def __str__(self) -> str:
+        """String representation of PolygonStructure."""
+        wkt_info = f", wkt={type(self.wkt).__name__}" if self.wkt else ", wkt=None"
+        return (f"PolygonStructure(target_code='{self.target_code}', "
+                f"refinement_order={self.refinement_order}, "
+                f"refinement_type='{self.refinement_type}', "
+                f"buffer_factor={self.buffer_factor}, "
+                f"buffer_unit='{self.buffer_unit}', "
+                f"interest={self.interest}{wkt_info})")

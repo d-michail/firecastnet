@@ -1,0 +1,21 @@
+sphere:
+    refinement_order: 3
+    center: [0.0, 0.0, 0.0]
+refinement_targets:
+  - target_code: "SHSA"
+    refinement_order: 6
+    refinement_type: "uniform"
+    buffer_factor: 200
+  # - target_code: "California, USA"
+  #   refinement_order: 7
+  #   refinement_type: "uniform"
+  #   buffer_factor: 600
+  # - target_code: "New South Wales, AUS"
+  #   refinement_order: 7
+  #   refinement_type: "uniform"
+  #   buffer_factor: 600
+gzip: true
+save_layers: false
+intersection_layers: true
+output:
+  filename: "SHSA"

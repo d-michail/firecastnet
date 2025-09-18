@@ -5,7 +5,7 @@ from typing import Union
 from pyproj import CRS, Transformer
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.ops import transform as shapely_transform
-from utils import flatten_polygons, undo_antimeridian_wrap
+from .utils import flatten_polygons, undo_antimeridian_wrap
 
 def flip_coords(x, y):
     return y, x

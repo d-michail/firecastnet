@@ -3,9 +3,9 @@ import numpy as np
 from typing import List
 from shapely import convex_hull
 from shapely.geometry import Polygon, MultiPolygon
-from buffers import buffer_polygon
-from utils import get_icosahedron_geometry, to_cartesian, to_lat_lon, to_sphere
-from PolygonStructure import PolygonStructure
+from .buffers import buffer_polygon
+from .utils import get_icosahedron_geometry, to_cartesian, to_lat_lon, to_sphere
+from .PolygonStructure import PolygonStructure
 
 def apply_buffers(polygon: PolygonStructure, base_refinement_order: int = 0) -> List[PolygonStructure]:
     """
@@ -71,7 +71,8 @@ def polygon_structures_preprocess(polygon_structures: List['PolygonStructure'], 
     # Sort the polygon structure by refinement order
     polygon_structures = sorted(polygon_structures, key=lambda x: x.refinement_order)
 
-    print(polygon_structures)
+    for p in polygon_structures:
+        print(p)
     return polygon_structures
 
 e = 1e-5
