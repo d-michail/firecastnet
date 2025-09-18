@@ -92,7 +92,7 @@ def mesh_stitch(mesh, submesh, intersecting_faces_idx, vertice_maps):
     new_mesh_vertices = np.append(mesh.vertices, submesh_vertices, axis=0)
     return pymesh.form_mesh(new_mesh_vertices, new_mesh_faces)
 
-def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, save_layers: bool, intersection_layers: bool, radius: float, center: np.ndarray) -> Dict[str, Any]:
+def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, save_layers: bool, split_layers: bool, radius: float, center: np.ndarray) -> Dict[str, Any]:
     """
     Generates an icosphere with adaptive mesh refinement based on polygon regions.
     
@@ -107,7 +107,7 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, save_la
             and refinement parameters.
         mesh: PyMesh mesh object representing the initial icosphere.
         save_layers (bool): Flag indicating whether to save intermediate mesh layers.
-        intersection_layers (bool): Flag indicating whether to save intersection layers.
+        split_layers (bool): Flag indicating whether to save intersection layers.
         radius (float): Radius for sphere projection.
         center (np.ndarray): Center point for sphere projection.
 
@@ -132,7 +132,7 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, save_la
 
 
     mesh_layers = []
-    intersecting_mesh_layers = [None]
+    split_layered_mesh = [None]
     try:
         if len(polygon_structures) != 0:
             max_ref_order = max(p.refinement_order for p in polygon_structures)
@@ -177,7 +177,7 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, save_la
                     len(reserved_faces) == 0:
                     mesh = pymesh.subdivide(mesh, total_refinements)
                     mesh = pymesh.form_mesh(to_sphere(mesh.vertices, radius=radius, center=center), mesh.faces)
-                    intersecting_mesh_layers.append(None)
+                    split_layered_mesh.append(None)
                     last_ref_order = ref_order
                     continue
                 
@@ -200,8 +200,8 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, save_la
 
                 last_ref_order = ref_order
 
-                if intersection_layers:
-                    intersecting_mesh_layers.append(submesh)
+                if split_layers:
+                    split_layered_mesh.append(submesh)
                 
 
         # Append the final mesh to the mesh layers
@@ -210,7 +210,7 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, save_la
         # Save the final mesh to a json file
         icospheres_dict = mesh_to_dict([mesh])
         mesh_layers_dict = mesh_to_dict(mesh_layers) if save_layers else None
-        intersecting_faces_mesh_dict = mesh_to_dict(intersecting_mesh_layers) if intersection_layers else None
+        intersecting_faces_mesh_dict = mesh_to_dict(split_layered_mesh) if split_layers else None
 
         return icospheres_dict, mesh_layers_dict, intersecting_faces_mesh_dict
 

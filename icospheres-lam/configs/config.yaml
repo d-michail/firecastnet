@@ -8,6 +8,6 @@ refinement_targets:
     buffer_factor: 200
 gzip: true
 save_layers: false
-intersection_layers: true
+split_layers: true
 output:
   filename: "SHSA"

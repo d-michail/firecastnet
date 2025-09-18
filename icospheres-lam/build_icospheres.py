@@ -116,7 +116,7 @@ def execute_icosphere_generation(config: dict):
         polygon_structures,
         mesh,
         save_layers=config.get("save_layers", False),
-        intersection_layers=config.get("intersection_layers", False),
+        split_layers=config.get("split_layers", False),
             radius=radius,
             center=center
         )
@@ -165,7 +165,7 @@ if __name__ == "__main__":
             if mesh_layers_dict:
                 save_icosphere(config, mesh_layers_dict, filename + "_layers")
             if intersecting_mesh_layers_dict:
-                save_icosphere(config, intersecting_mesh_layers_dict, filename + "_intersection_layers")
+                save_icosphere(config, intersecting_mesh_layers_dict, filename + "_split_layers")
     else:
         import sys
         # Convert program arguments to string command
