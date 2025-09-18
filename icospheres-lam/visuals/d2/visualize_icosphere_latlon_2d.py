@@ -6,6 +6,7 @@ from ..utils import (
     configure_cartopy_grid,
     crop_latlon_map,
     face_wraps_around_latlon,
+    get_edge_color,
     save_figure_if_path_provided,
     setup_cartopy_map,
     to_lat_lon,
@@ -14,7 +15,7 @@ from ..utils import (
 )
 from matplotlib.patches import Patch
 
-def visualize_icosphere_latlon_2d(icospheres, refinement_order=0, show_wireframe=True, alpha=0.7, 
+def visualize_icosphere_latlon_2d(icospheres, refinement_order=0, color=None, show_wireframe=True, alpha=0.7, 
                                 polygon_vertices=None, polygon_centroid=None,
                                 show_face_numbers=False, show_grid_labels=True, show_title=True, show_labels=True, crop_bounds=None, save_path=None):
     """
@@ -24,8 +25,10 @@ def visualize_icosphere_latlon_2d(icospheres, refinement_order=0, show_wireframe
     ----------
     icospheres : dict
         Dictionary containing icosphere data
-    order : int, optional
+    refinement_order : int, optional
         The order of the icosphere to visualize, by default 0
+    color : str, optional
+        Color for the icosphere surfaces and vertices. If None, uses default 'cyan' for faces and 'blue' for vertices.
     show_wireframe : bool, optional
         Whether to show the wireframe of the icosphere, by default True
     alpha : float, optional
@@ -63,6 +66,14 @@ def visualize_icosphere_latlon_2d(icospheres, refinement_order=0, show_wireframe
     # Convert 3D vertices to lat-lon
     vertices_latlon = to_lat_lon(vertices_3d)
     
+    # Set default colors if none provided
+    if color is None:
+        vertex_color = 'b'  # Default blue for vertices
+        face_color = 'cyan'  # Default cyan for faces
+    else:
+        vertex_color = color
+        face_color = color
+    
     # Create figure and axis with projection
     fig, ax, projection = setup_cartopy_map(None, figsize=(12, 8))
     
@@ -72,7 +83,7 @@ def visualize_icosphere_latlon_2d(icospheres, refinement_order=0, show_wireframe
     
     # Plot vertices
     ax.scatter(vertices_latlon[:, 1], vertices_latlon[:, 0], 
-              color='b', s=10, alpha=0.6)
+              color=vertex_color, s=10, alpha=0.6, transform=projection)
         
     # Prepare for face numbers if needed
     face_centers = []
@@ -91,15 +102,16 @@ def visualize_icosphere_latlon_2d(icospheres, refinement_order=0, show_wireframe
         triangle_lons = triangle_latlon[:, 1]
         triangle_lats = triangle_latlon[:, 0]
         
-        facecolor = 'cyan'
-        edgecolor = 'darkblue' if show_wireframe else None
+        # Determine edge color
+        edge_color = get_edge_color(face_color)
             
         # Plot the triangle
         ax.fill(triangle_lons, triangle_lats,
-                facecolor=facecolor, 
-                edgecolor=edgecolor,
+                facecolor=face_color, 
+                edgecolor=edge_color if show_wireframe else None,
                 linewidth=0.5 if show_wireframe else 0,
-                alpha=alpha)
+                alpha=alpha,
+                transform=projection)
         
         # Calculate and store the face center and index if we're showing face numbers
         if show_face_numbers:
@@ -119,8 +131,8 @@ def visualize_icosphere_latlon_2d(icospheres, refinement_order=0, show_wireframe
     
     # Initialize legend elements
     legend_elements = [
-        Line2D([0], [0], marker='o', color='w', markerfacecolor='b', markersize=8, label='Icosphere Vertices'),
-        Patch(facecolor='cyan', edgecolor='darkblue' if show_wireframe else None, alpha=alpha, label='Icosphere Faces')
+        Line2D([0], [0], marker='o', color='w', markerfacecolor=vertex_color, markersize=8, label='Icosphere Vertices'),
+        Patch(facecolor=face_color, edgecolor=edge_color if show_wireframe else None, alpha=alpha, label='Icosphere Faces')
     ]
         
     # Plot polygon if provided 

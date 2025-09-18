@@ -426,7 +426,7 @@ def sample_dataset(
             )
 
     if split == "train":
-        ds = ds.sel(time=slice("2002-01-01", "2006-01-01"))
+        ds = ds.sel(time=slice("2002-01-01", "2018-01-01"))
     elif split == "val":
         ds = ds.sel(time=slice("2018-01-01", "2019-01-01"))
     elif split == "test":
