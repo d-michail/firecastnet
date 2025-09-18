@@ -1,9 +1,4 @@
 import os
-import json
-import subprocess
-import pandas as pd
-from typing import List
-from shapely.wkt import loads as wkt_loads
 
 def argparse_setup():
     import argparse
@@ -14,12 +9,19 @@ def argparse_setup():
         dest="config_path",
         help="Path to the configuration file."
     )
+    parser.add_argument(
+        "--configs_all", 
+        action="store_true",
+        default=False,
+        help="If set, process all config files in the ./configs/ directory."
+    )
     return vars(parser.parse_args())
 
 def running_in_docker():
     return os.path.exists("/.dockerenv")
 
 def run_command(command: str) -> str:
+    import subprocess
     result = subprocess.run(
         command,
         shell=True,          # Use shell so string commands work
@@ -31,7 +33,9 @@ def run_command(command: str) -> str:
     print(result.stdout)
     return result.stdout.strip()
 
-def save_icosphere(config: dict, mesh, filename: str):    
+def save_icosphere(config: dict, mesh, filename: str):
+    import json
+
     directory = config["output"].get("directory", "./icospheres/")
     os.makedirs(directory, exist_ok=True, mode=0o755)
     location = directory + f"{filename}.json"
@@ -45,8 +49,11 @@ def save_icosphere(config: dict, mesh, filename: str):
         print(f"Generated icosphere saved to {location}.gz")
         
 def initialize_PolygonStructures(config: dict):
+    import pandas as pd
     from icosphere_generation.PolygonStructure import PolygonStructure
-
+    from shapely.wkt import loads as wkt_loads
+    from typing import List
+    
     # Load the countries csv
     csv_path = "./csv/wkt.csv"
     df = pd.read_csv(csv_path, encoding='latin1', sep=',',
@@ -85,7 +92,7 @@ def initialize_PolygonStructures(config: dict):
 
 def execute_icosphere_generation(config: dict):
     from icosphere_generation.preprocess import generate_initial_mesh, polygon_structures_preprocess
-    from icosphere_generation.utils import generate_icosphere_file_code, load_yaml
+    from icosphere_generation.utils import generate_icosphere_file_code
     from icosphere_generation.mesh_operations import generate_icosphere
 
     # Extract sphere parameters
@@ -118,12 +125,18 @@ if __name__ == "__main__":
 
     if running_in_docker():
         from icosphere_generation.utils import load_yaml
-        configs = os.listdir("./configs/")
-        
+        if not os.path.exists("./configs/"):
+            os.makedirs("./configs/", exist_ok=True)
+
+        configs = []
+        if args["configs_all"]:
+            configs = [os.path.join("./configs/", f) for f in os.listdir("./configs/") if f.endswith(".yaml")]
+        else:
+            configs.append(args["config_path"])
+
         for config_file in configs:
-            args["config_path"] = os.path.join("./configs/", config_file)
             # Load the config from the specified path
-            config = load_yaml(args["config_path"])
+            config = load_yaml(config_file)
             if "output" not in config:
                 config["output"] = {}
             if "sphere" not in config:
