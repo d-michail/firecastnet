@@ -96,7 +96,7 @@ if __name__ == "__main__":
 
             # Save mesh layers if they were generated
             if mesh_layers_dict:
-                save_icosphere(config, mesh_layers_dict, filename + "_layers")
+                save_icosphere(config, mesh_layers_dict, filename + "_all_layers")
             if intersecting_mesh_layers_dict:
                 save_icosphere(config, intersecting_mesh_layers_dict, filename + "_split_layers")
     else:

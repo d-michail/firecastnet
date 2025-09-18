@@ -7,7 +7,5 @@ refinement_targets:
     refinement_type: "uniform"
     buffer_factor: 200
 gzip: true
-save_layers: false
+all_layers: false
 split_layers: true
-output:
-  filename: "SHSA"

@@ -5,7 +5,10 @@ This module contains functions for mesh manipulation, face intersection detectio
 submesh construction, and mesh stitching operations used in adaptive icosphere generation.
 """
 
-import pymesh
+try:
+    import pymesh
+except ImportError:
+    Warning("pymesh is not installed. Please install it to generate icospheres.")
 import numpy as np
 import traceback
 from typing import List, Dict, Any
@@ -92,7 +95,7 @@ def mesh_stitch(mesh, submesh, intersecting_faces_idx, vertice_maps):
     new_mesh_vertices = np.append(mesh.vertices, submesh_vertices, axis=0)
     return pymesh.form_mesh(new_mesh_vertices, new_mesh_faces)
 
-def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, save_layers: bool, split_layers: bool, radius: float, center: np.ndarray) -> Dict[str, Any]:
+def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, config: dict) -> Dict[str, Any]:
     """
     Generates an icosphere with adaptive mesh refinement based on polygon regions.
     
@@ -106,10 +109,8 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, save_la
             refinement regions, each containing target geometry, refinement order,
             and refinement parameters.
         mesh: PyMesh mesh object representing the initial icosphere.
-        save_layers (bool): Flag indicating whether to save intermediate mesh layers.
-        split_layers (bool): Flag indicating whether to save intersection layers.
-        radius (float): Radius for sphere projection.
-        center (np.ndarray): Center point for sphere projection.
+        config (dict): Configuration dictionary containing generation parameters such as
+            sphere radius, center, and flags for saving mesh layers.
 
     Returns:
         Dict[str, Any]: Dictionary containing mesh data with keys:
@@ -122,6 +123,11 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, save_la
         - Handles antimeridian-crossing polygons with special logic
         - Reserved faces (interest=False) are excluded from subdivision
     """
+    
+    radius = config.get("sphere", {}).get("radius", 1.0)
+    center = np.array(config.get("sphere", {}).get("center", [0.0, 0.0, 0.0]))
+    all_layers = config.get("all_layers", False)
+    split_layers = config.get("split_layers", False)
 
     def yield_polygons(ref_order: int, polygons: List[PolygonStructure]):
         for polygon in polygons:
@@ -149,7 +155,7 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, save_la
                 intersecting_faces_idx = []
                 reserved_faces = []
                 # Make a copy of mesh and append it to mesh_layers
-                if save_layers:
+                if all_layers:
                     mesh_layers.append(pymesh.form_mesh(mesh.vertices, mesh.faces))
 
                 for polygon in polygons:
@@ -171,6 +177,7 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, save_la
                             reserved_faces.extend(intersecting_faces)
                         else:
                             intersecting_faces_idx.extend(intersecting_faces)
+
                 total_refinements = ref_order - last_ref_order
                 # In case of global refinement there so need for selective refinement and stitching
                 if len(intersecting_faces_idx) == len(mesh.faces) and \
@@ -209,7 +216,7 @@ def generate_icosphere(polygon_structures: List[PolygonStructure], mesh, save_la
 
         # Save the final mesh to a json file
         icospheres_dict = mesh_to_dict([mesh])
-        mesh_layers_dict = mesh_to_dict(mesh_layers) if save_layers else None
+        mesh_layers_dict = mesh_to_dict(mesh_layers) if all_layers else None
         intersecting_faces_mesh_dict = mesh_to_dict(split_layered_mesh) if split_layers else None
 
         return icospheres_dict, mesh_layers_dict, intersecting_faces_mesh_dict

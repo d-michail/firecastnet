@@ -1,4 +1,7 @@
-import pymesh
+try:
+    import pymesh
+except ImportError:
+    Warning("pymesh is not installed. Please install it to generate icospheres.")
 import numpy as np
 from typing import List
 from shapely import convex_hull

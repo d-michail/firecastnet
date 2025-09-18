@@ -90,10 +90,7 @@ def execute_icosphere_generation(config: dict) -> Tuple[Dict[str, Any], Dict[str
     icospheres_dict, mesh_layers_dict, intersecting_mesh_layers_dict = generate_icosphere(
         polygon_structures,
         mesh,
-        save_layers=config.get("save_layers", False),
-        split_layers=config.get("split_layers", False),
-        radius=radius,
-        center=center
+        config
     )
     
     return icospheres_dict, mesh_layers_dict, intersecting_mesh_layers_dict, file_code
