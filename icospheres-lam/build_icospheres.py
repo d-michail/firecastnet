@@ -4,7 +4,7 @@ def argparse_setup():
     import argparse
     parser = argparse.ArgumentParser(description="Generate an icosphere with adaptive mesh refinement.")
     parser.add_argument(
-        "--config", 
+        "--config",
         default="./configs/config.yaml",
         dest="config_path",
         help="Path to the configuration file."
@@ -14,6 +14,12 @@ def argparse_setup():
         action="store_true",
         default=False,
         help="If set, process all config files in the ./configs/ directory."
+    )
+    parser.add_argument(
+        "--outdir",
+        default="./icospheres/",
+        dest="outdir",
+        help="Output directory for the generated icosphere files."
     )
     return vars(parser.parse_args())
 
@@ -106,12 +112,11 @@ def execute_icosphere_generation(config: dict):
     # Preprocess the polygon structures
     polygon_structures = polygon_structures_preprocess(polygon_structures, base_refinement_order=refinement_order)
     mesh = generate_initial_mesh(radius=radius, center=center)
-    icospheres_dict, mesh_layers_dict, intersecting_mesh_layers_dict = \
-        generate_icosphere(
-            polygon_structures, 
-            mesh, 
-            save_layers=config.get("save_layers", False), 
-            intersection_layers=config.get("intersection_layers", False),
+    icospheres_dict, mesh_layers_dict, intersecting_mesh_layers_dict = generate_icosphere(
+        polygon_structures,
+        mesh,
+        save_layers=config.get("save_layers", False),
+        intersection_layers=config.get("intersection_layers", False),
             radius=radius,
             center=center
         )
@@ -127,33 +132,42 @@ if __name__ == "__main__":
         from icosphere_generation.utils import load_yaml
         if not os.path.exists("./configs/"):
             os.makedirs("./configs/", exist_ok=True)
+        if not os.path.exists(args["config_path"]):
+            raise FileNotFoundError(f"Config file {args['config_path']} does not exist.")
 
+        # Determine which config files to process
         configs = []
         if args["configs_all"]:
             configs = [os.path.join("./configs/", f) for f in os.listdir("./configs/") if f.endswith(".yaml")]
         else:
             configs.append(args["config_path"])
 
-        for config_file in configs:
-            # Load the config from the specified path
-            config = load_yaml(config_file)
+        # Load and possibly modify each config
+        for i, config in enumerate(configs):
+            configs[i] = load_yaml(config)
+            if args["outdir"]:
+                config["output"]["directory"] = args["outdir"]
             if "output" not in config:
                 config["output"] = {}
             if "sphere" not in config:
                 config["sphere"] = {}
 
+        for config in configs:
             # Execute the icosphere generation
-            icospheres_dict, mesh_layers_dict, intersecting_mesh_layers_dict, file_code = \
+            icospheres_dict, mesh_layers_dict, intersecting_mesh_layers_dict, file_code =\
                 execute_icosphere_generation(config)
-            filename = config["output"].get("filename", file_code)
+            
             # Save the icosphere to a file
+            filename = config["output"].get("filename", file_code)
             save_icosphere(config, icospheres_dict, filename)
 
             # Save mesh layers if they were generated
             if mesh_layers_dict:
                 save_icosphere(config, mesh_layers_dict, filename + "_layers")
-
             if intersecting_mesh_layers_dict:
                 save_icosphere(config, intersecting_mesh_layers_dict, filename + "_intersection_layers")
     else:
-        run_command("sudo docker run --rm -v `pwd`:/models custom-pymesh:py3.7 /bin/bash -c 'cd /models && python build_icospheres.py && exit'")
+        import sys
+        # Convert program arguments to string command
+        raw_args = ' '.join(sys.argv[1:])
+        run_command(f"sudo docker run --rm -v `pwd`:/models custom-pymesh:py3.7 /bin/bash -c 'cd /models && python build_icospheres.py {raw_args} && exit'")

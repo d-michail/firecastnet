@@ -6,14 +6,6 @@ refinement_targets:
     refinement_order: 6
     refinement_type: "uniform"
     buffer_factor: 200
-  # - target_code: "California, USA"
-  #   refinement_order: 7
-  #   refinement_type: "uniform"
-  #   buffer_factor: 600
-  # - target_code: "New South Wales, AUS"
-  #   refinement_order: 7
-  #   refinement_type: "uniform"
-  #   buffer_factor: 600
 gzip: true
 save_layers: false
 intersection_layers: true

@@ -14,17 +14,17 @@ docker build -t custom-pymesh:py3.7 -f Dockerfile .
 ## Build the icosphere with from a config file
 
 ```Bash
-cd icospheres-lam
-docker run -it --rm -v `pwd`:/icospheres custom-pymesh:py3.7 /bin/bash
-
-# Inside the Docker container
-cd /icospheres
 # Build the icosphere using the default config file
 python ./build_icospheres.py
-# Or specify the config file and/or output directory
-python ./build_icospheres.py --config config.yaml --out_dir ./icospheres/
 
-exit
+# Or specify the config file and/or output directory
+python ./build_icospheres.py --config config.yaml
+
+# Process all config files in the ./configs/ directory
+python ./build_icospheres.py --configs_all 
+
+# Override the output directory for all generated files
+python ./build_icospheres.py --configs_all --outdir ./my_output_directory/
 ```
 
 To configure the icosphere build process, you can edit the `config.yaml` file the following structure:
@@ -45,23 +45,28 @@ refinement_targets:
     # The type of refinement to apply (Default: "none")
     refiniment_type: "uniform | block | none" 
     # Refinemnt buffer amount - Only applies to uniform refinement type
-    refinement_buffer: 50.0
+    buffer_factor: 50.0
     # Refinement buffer unit of measure (Default: "km")
-    refinement_buffer_unit: "km | percent"
+    buffer_unit: "km | percent"
     # Interest of the target (Default: true)
     interest: true
 
+  # Administrative level 1 names with country code (e.g., "California, USA")
+  - target_code: "California, USA | Ontario, CAN | Bavaria, DEU" 
+
   # Continent codes from ISO 3166-1
   - target_code: "AF | AN | AS | EU | NA | OC | SA" 
-    ... # Same structure as above
   
   # GFED region codes
   - target_code: "BONA | TENA | CEAM | NHSA | SHSA | EURO | MIDE | NHAF | SHAF | BOAS | CEAS | SEAS | EQAS | AUST"
-    ... # Same structure as above
   
   # Bring your own Polygon/MultiPolygon WKT
   - custom_wkt: "..." 
     ... # Same structure as above
-gzip: true # Whether to gzip the output json file (default is false)
 
+gzip: true # Whether to gzip the output json file (default is false)
+split_layers: true # Whether to generate mesh with each refinement layer
+output:
+    directory: "./icospheres/" # The output directory (default is ./icospheres/)
+    filename: "icosphere" # The base filename for the output files (default is an auto-generated name based on configuration)
 ```
