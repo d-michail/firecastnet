@@ -168,5 +168,5 @@ lightning_logs/
 /bin
 /share
 /lib*
-/models
-/thesis
+/icospheres-lam/icospheres
+/icospheres-lam/geoBoundaries*

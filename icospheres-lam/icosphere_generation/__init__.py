@@ -8,6 +8,7 @@ This module contains the following components:
 - buffers: Functions for applying geographic buffers to polygons
 - validate_mesh: Functions for validating and debugging generated meshes
 - mesh_operations: Functions for mesh manipulation, face intersection detection, and mesh stitching
+- process: Functions for configuration processing and generation orchestration
 """
 
 from .PolygonStructure import PolygonStructure
@@ -24,6 +25,7 @@ from .mesh_operations import (
     find_intersecting_icosphere_faces, construct_submesh, 
     mesh_stitch, generate_icosphere
 )
+from .process import initialize_PolygonStructures, execute_icosphere_generation
 
 __all__ = [
     'PolygonStructure',
@@ -35,5 +37,6 @@ __all__ = [
     'buffer_polygon', 'flip_transform',
     '_save_comprehensive_mesh_debug',
     'find_intersecting_icosphere_faces', 'construct_submesh', 
-    'mesh_stitch', 'generate_icosphere'
+    'mesh_stitch', 'generate_icosphere',
+    'initialize_PolygonStructures', 'execute_icosphere_generation'
 ]

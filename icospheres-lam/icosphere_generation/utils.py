@@ -29,14 +29,6 @@ def generate_icosphere_file_code(polygon_structures: List[PolygonStructure], ref
     return structure_code
 
 def gzip_file(filename: str):
-    """ Compress a file using gzip and return the compressed file name.
-    
-    Args:
-        filename (str): The name of the file to compress.
-        
-    Returns:
-        str: The name of the compressed file.
-    """
     import gzip
     import shutil
     

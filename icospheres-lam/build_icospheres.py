@@ -53,75 +53,6 @@ def save_icosphere(config: dict, mesh, filename: str):
         from icosphere_generation.utils import gzip_file
         gzip_file(location)
         print(f"Generated icosphere saved to {location}.gz")
-        
-def initialize_PolygonStructures(config: dict):
-    import pandas as pd
-    from icosphere_generation.PolygonStructure import PolygonStructure
-    from shapely.wkt import loads as wkt_loads
-    from typing import List
-    
-    # Load the countries csv
-    csv_path = "./csv/wkt.csv"
-    df = pd.read_csv(csv_path, encoding='latin1', sep=',',
-                     quotechar='"', keep_default_na=False)
-
-    # Load the sphere from the config
-    sphere_config = config["sphere"]
-    refinement_order = sphere_config.get("refinement_order", 3)
-
-    # Load the refinement targets from the config
-    refinement_targets = config.get("refinement_targets", [])
-    polygon_structures: List[PolygonStructure] = []
-    for i, target in enumerate(refinement_targets):
-        if "target_code" in target:
-            code = target["target_code"]
-            if "," in code:
-                target_wkt = df[df["SUBUNIT"] == code]["WKT"].values[0]
-            else:
-                target_wkt = df[(df["SU_A3"] == code) | (df["SUBUNIT"] == code)]["WKT"].values[0]
-        elif "custom_wkt" in target:
-            code = "custom"
-            target_wkt = target["custom_wkt"]
-        else:
-            raise ValueError(f"Target {i} does not have a valid 'target_code' or 'custom_wkt' field.")
-        target["wkt"] = wkt_loads(target_wkt)
-        polygon_structures.append(PolygonStructure.from_dict(target))
-
-    for i in range(1, refinement_order + 1):
-        # Add a default polygon structure for the base refinement order
-        polygon_structures.append(PolygonStructure(
-            target_code="global",
-            refinement_order=i,
-        ))
-        
-    return polygon_structures, refinement_order
-
-def execute_icosphere_generation(config: dict):
-    from icosphere_generation.preprocess import generate_initial_mesh, polygon_structures_preprocess
-    from icosphere_generation.utils import generate_icosphere_file_code
-    from icosphere_generation.mesh_operations import generate_icosphere
-
-    # Extract sphere parameters
-    radius = config["sphere"].get("radius", 1.0)
-    center = config["sphere"].get("center", [0.0, 0.0, 0.0])
-
-
-    polygon_structures, refinement_order = initialize_PolygonStructures(config)
-    file_code = generate_icosphere_file_code(polygon_structures, refinement_order)
-
-    # Preprocess the polygon structures
-    polygon_structures = polygon_structures_preprocess(polygon_structures, base_refinement_order=refinement_order)
-    mesh = generate_initial_mesh(radius=radius, center=center)
-    icospheres_dict, mesh_layers_dict, intersecting_mesh_layers_dict = generate_icosphere(
-        polygon_structures,
-        mesh,
-        save_layers=config.get("save_layers", False),
-        split_layers=config.get("split_layers", False),
-            radius=radius,
-            center=center
-        )
-    
-    return icospheres_dict, mesh_layers_dict, intersecting_mesh_layers_dict, file_code
 
 
 if __name__ == "__main__":
@@ -130,6 +61,7 @@ if __name__ == "__main__":
 
     if running_in_docker():
         from icosphere_generation.utils import load_yaml
+        from icosphere_generation.process import execute_icosphere_generation
         if not os.path.exists("./configs/"):
             os.makedirs("./configs/", exist_ok=True)
         if not os.path.exists(args["config_path"]):
@@ -145,12 +77,13 @@ if __name__ == "__main__":
         # Load and possibly modify each config
         for i, config in enumerate(configs):
             configs[i] = load_yaml(config)
-            if args["outdir"]:
-                config["output"]["directory"] = args["outdir"]
+            config = configs[i]
             if "output" not in config:
                 config["output"] = {}
             if "sphere" not in config:
                 config["sphere"] = {}
+            if args["outdir"]:
+                config["output"]["directory"] = args["outdir"]
 
         for config in configs:
             # Execute the icosphere generation
