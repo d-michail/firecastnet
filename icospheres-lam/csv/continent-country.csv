@@ -8,11 +8,11 @@ Burkina Faso,BFA,Africa,AF
 Burundi,BDI,Africa,AF
 Cabo Verde,CPV,Africa,AF
 Cameroon,CMR,Africa,AF
-Central Africa,CAF,Africa,AF
+Central African Rep,CAF,Africa,AF
 Chad,TCD,Africa,AF
 Comoros,COM,Africa,AF
 Congo,COG,Africa,AF
-"Congo, Democratic Republic of the",COD,Africa,AF
+"Congo, Dem Rep of the",COD,Africa,AF
 Côte d'Ivoire,CIV,Africa,AF
 Djibouti,DJI,Africa,AF
 Egypt,EGY,Africa,AF
@@ -22,7 +22,7 @@ Eswatini,SWZ,Africa,AF
 Ethiopia,ETH,Africa,AF
 French Southern Territories,ATF,Africa,AF
 Gabon,GAB,Africa,AF
-Gambia,GMB,Africa,AF
+"Gambia, The",GMB,Africa,AF
 Ghana,GHA,Africa,AF
 Guinea,GIN,Africa,AF
 Guinea-Bissau,GNB,Africa,AF
@@ -43,8 +43,8 @@ Niger,NER,Africa,AF
 Nigeria,NGA,Africa,AF
 Réunion,REU,Africa,AF
 Rwanda,RWA,Africa,AF
-"Saint Helena, Ascension and Tristan da Cunha",SHN,Africa,AF
-Sao Tome and Principe,STP,Africa,AF
+"Saint Helena, Ascension & Tristan da Cunha",SHN,Africa,AF
+Sao Tome & Principe,STP,Africa,AF
 Senegal,SEN,Africa,AF
 Seychelles,SYC,Africa,AF
 Sierra Leone,SLE,Africa,AF
@@ -52,7 +52,7 @@ Somalia,SOM,Africa,AF
 South Africa,ZAF,Africa,AF
 South Sudan,SSD,Africa,AF
 Sudan,SDN,Africa,AF
-"Tanzania, United Republic of",TZA,Africa,AF
+Tanzania,TZA,Africa,AF
 Togo,TGO,Africa,AF
 Tunisia,TUN,Africa,AF
 Uganda,UGA,Africa,AF
@@ -60,19 +60,19 @@ Western Sahara,ESH,Africa,AF
 Zambia,ZMB,Africa,AF
 Zimbabwe,ZWE,Africa,AF
 Anguilla,AIA,North America,NA
-Antigua and Barbuda,ATG,North America,NA
+Antigua & Barbuda,ATG,North America,NA
 Argentina,ARG,South America,SA
 Aruba,ABW,North America,NA
-Bahamas,BHS,North America,NA
+"Bahamas, The",BHS,North America,NA
 Barbados,BRB,North America,NA
 Belize,BLZ,North America,NA
 Bermuda,BMU,North America,NA
-Bolivia (Plurinational State of),BOL,South America,SA
-"Bonaire, Sint Eustatius and Saba",BES,North America,NA
+Bolivia,BOL,South America,SA
+"Bonaire, Sint Eustatius & Saba",BES,North America,NA
 Bouvet Island,BVT,South America,SA
 Brazil,BRA,South America,SA
 Canada,CAN,North America,NA
-Cayman Islands,CYM,North America,NA
+Cayman Is,CYM,North America,NA
 Chile,CHL,South America,SA
 Colombia,COL,South America,SA
 Costa Rica,CRI,North America,NA
@@ -82,7 +82,7 @@ Dominica,DMA,North America,NA
 Dominican Republic,DOM,North America,NA
 Ecuador,ECU,South America,SA
 El Salvador,SLV,North America,NA
-Falkland Islands (Malvinas),FLK,South America,SA
+Falkland Is (Malvinas),FLK,South America,SA
 French Guiana,GUF,South America,SA
 Greenland,GRL,North America,NA
 Grenada,GRD,North America,NA
@@ -100,29 +100,29 @@ Panama,PAN,North America,NA
 Paraguay,PRY,South America,SA
 Peru,PER,South America,SA
 Puerto Rico,PRI,North America,NA
-Saint Barthélemy,BLM,North America,NA
-Saint Kitts and Nevis,KNA,North America,NA
-Saint Lucia,LCA,North America,NA
-Saint Martin (French part),MAF,North America,NA
-Saint Pierre and Miquelon,SPM,North America,NA
-Saint Vincent and the Grenadines,VCT,North America,NA
+St Barthélemy,BLM,North America,NA
+St Kitts & Nevis,KNA,North America,NA
+St Lucia,LCA,North America,NA
+St Martin (French part),MAF,North America,NA
+St Pierre & Miquelon,SPM,North America,NA
+St Vincent & the Grenadines,VCT,North America,NA
 Sint Maarten (Dutch part),SXM,North America,NA
-South Georgia and the South Sandwich Islands,SGS,South America,SA
+South Georgia & the South Sandwich Is,SGS,South America,SA
 Suriname,SUR,South America,SA
-Trinidad and Tobago,TTO,North America,NA
-Turks and Caicos Islands,TCA,North America,NA
-United States of America,USA,North America,NA
+Trinidad & Tobago,TTO,North America,NA
+Turks & Caicos Is,TCA,North America,NA
+United States,USA,North America,NA
 Uruguay,URY,South America,SA
-Venezuela (Bolivarian Republic of),VEN,South America,SA
-Virgin Islands (British),VGB,North America,NA
-Virgin Islands (U.S.),VIR,North America,NA
+Venezuela,VEN,South America,SA
+Virgin Is (British),VGB,North America,NA
+Virgin Is (U.S.),VIR,North America,NA
 Afghanistan,AFG,Asia,AS
 Armenia,ARM,Asia,AS
 Azerbaijan,AZE,Asia,AS
 Bahrain,BHR,Asia,AS
 Bangladesh,BGD,Asia,AS
 Bhutan,BTN,Asia,AS
-Brunei Darussalam,BRN,Asia,AS
+Brunei,BRN,Asia,AS
 Cambodia,KHM,Asia,AS
 China,CHN,Asia,AS
 Cyprus,CYP,Asia,AS
@@ -130,17 +130,17 @@ Georgia,GEO,Asia,AS
 Hong Kong,HKG,Asia,AS
 India,IND,Asia,AS
 Indonesia,IDN,Asia,AS
-Iran (Islamic Republic of),IRN,Asia,AS
+Iran,IRN,Asia,AS
 Iraq,IRQ,Asia,AS
 Israel,ISR,Asia,AS
 Japan,JPN,Asia,AS
 Jordan,JOR,Asia,AS
 Kazakhstan,KAZ,Asia,AS
-Korea (Democratic People's Republic of),PRK,Asia,AS
-"Korea, Republic of",KOR,Asia,AS
+"Korea, North",PRK,Asia,AS
+"Korea, South",KOR,Asia,AS
 Kuwait,KWT,Asia,AS
 Kyrgyzstan,KGZ,Asia,AS
-Lao People's Democratic Republic,LAO,Asia,AS
+Laos,LAO,Asia,AS
 Lebanon,LBN,Asia,AS
 Macao,MAC,Asia,AS
 Malaysia,MYS,Asia,AS
@@ -156,8 +156,8 @@ Qatar,QAT,Asia,AS
 Saudi Arabia,SAU,Asia,AS
 Singapore,SGP,Asia,AS
 Sri Lanka,LKA,Asia,AS
-Syrian Arab Republic,SYR,Asia,AS
-"Taiwan, Province of China",TWN,Asia,AS
+Syria,SYR,Asia,AS
+Taiwan,TWN,Asia,AS
 Tajikistan,TJK,Asia,AS
 Thailand,THA,Asia,AS
 Timor-Leste,TLS,Asia,AS
@@ -165,28 +165,28 @@ Turkey,TUR,Asia,AS
 Turkmenistan,TKM,Asia,AS
 United Arab Emirates,ARE,Asia,AS
 Uzbekistan,UZB,Asia,AS
-Viet Nam,VNM,Asia,AS
+Vietnam,VNM,Asia,AS
 Yemen,YEM,Asia,AS
-Åland Islands,ALA,Europe,EU
+Åland Is,ALA,Europe,EU
 Albania,ALB,Europe,EU
 Andorra,AND,Europe,EU
 Austria,AUT,Europe,EU
 Belarus,BLR,Europe,EU
 Belgium,BEL,Europe,EU
-Bosnia and Herzegovina,BIH,Europe,EU
+Bosnia & Herzegovina,BIH,Europe,EU
 Bulgaria,BGR,Europe,EU
 Croatia,HRV,Europe,EU
 Czechia,CZE,Europe,EU
 Denmark,DNK,Europe,EU
 Estonia,EST,Europe,EU
-Faroe Islands,FRO,Europe,EU
+Faroe Is,FRO,Europe,EU
 Finland,FIN,Europe,EU
 France,FRA,Europe,EU
 Germany,DEU,Europe,EU
 Gibraltar,GIB,Europe,EU
 Greece,GRC,Europe,EU
 Guernsey,GGY,Europe,EU
-Holy See,VAT,Europe,EU
+Vatican City,VAT,Europe,EU
 Hungary,HUN,Europe,EU
 Iceland,ISL,Europe,EU
 Ireland,IRL,Europe,EU
@@ -198,52 +198,52 @@ Liechtenstein,LIE,Europe,EU
 Lithuania,LTU,Europe,EU
 Luxembourg,LUX,Europe,EU
 Malta,MLT,Europe,EU
-"Moldova, Republic of",MDA,Europe,EU
+Moldova,MDA,Europe,EU
 Monaco,MCO,Europe,EU
 Montenegro,MNE,Europe,EU
 Netherlands,NLD,Europe,EU
-North Macedonia,MKD,Europe,EU
+Macedonia,MKD,Europe,EU
 Norway,NOR,Europe,EU
 Poland,POL,Europe,EU
 Portugal,PRT,Europe,EU
 Romania,ROU,Europe,EU
-Russian Federation,RUS,Europe,EU
+Russia,RUS,Europe,EU
 San Marino,SMR,Europe,EU
 Serbia,SRB,Europe,EU
 Slovakia,SVK,Europe,EU
 Slovenia,SVN,Europe,EU
 Spain,ESP,Europe,EU
-Svalbard and Jan Mayen,SJM,Europe,EU
+Svalbard & Jan Mayen,SJM,Europe,EU
 Sweden,SWE,Europe,EU
 Switzerland,CHE,Europe,EU
 Ukraine,UKR,Europe,EU
-United Kingdom of Great Britain and Northern Ireland,GBR,Europe,EU
+United Kingdom,GBR,Europe,EU
 American Samoa,ASM,Oceania,OC
 Australia,AUS,Oceania,OC
 Christmas Island,CXR,Oceania,OC
-Cocos (Keeling) Islands,CCK,Oceania,OC
-Cook Islands,COK,Oceania,OC
+Cocos (Keeling) Is,CCK,Oceania,OC
+Cook Is,COK,Oceania,OC
 Fiji,FJI,Oceania,OC
 French Polynesia,PYF,Oceania,OC
 Guam,GUM,Oceania,OC
-Heard Island and McDonald Islands,HMD,Oceania,OC
+Heard Island & McDonald Is,HMD,Oceania,OC
 Kiribati,KIR,Oceania,OC
-Marshall Islands,MHL,Oceania,OC
+Marshall Is,MHL,Oceania,OC
 Micronesia (Federated States of),FSM,Oceania,OC
 Nauru,NRU,Oceania,OC
 New Caledonia,NCL,Oceania,OC
 New Zealand,NZL,Oceania,OC
 Niue,NIU,Oceania,OC
 Norfolk Island,NFK,Oceania,OC
-Northern Mariana Islands,MNP,Oceania,OC
+Northern Mariana Is,MNP,Oceania,OC
 Palau,PLW,Oceania,OC
 Papua New Guinea,PNG,Oceania,OC
 Pitcairn,PCN,Oceania,OC
 Samoa,WSM,Oceania,OC
-Solomon Islands,SLB,Oceania,OC
+Solomon Is,SLB,Oceania,OC
 Tokelau,TKL,Oceania,OC
 Tonga,TON,Oceania,OC
 Tuvalu,TUV,Oceania,OC
-United States Minor Outlying Islands,UMI,Oceania,OC
+United States Minor Outlying Is,UMI,Oceania,OC
 Vanuatu,VUT,Oceania,OC
-Wallis and Futuna,WLF,Oceania,OC
+Wallis & Futuna,WLF,Oceania,OC

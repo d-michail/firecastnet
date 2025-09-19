@@ -4,12 +4,15 @@ import numpy as np
 from numpy.linalg import norm
 from shapely import MultiPolygon, Polygon
 from typing import List, Tuple, Union
-from PolygonStructure import PolygonStructure
+from .PolygonStructure import PolygonStructure
 
 MAX_LON = 180.0  
 GOLDEN_RATIO = (1.0 + math.sqrt(5.0)) / 2.0
 
 # GENERAL UTILS
+def order(order, thing):
+    return f"order_{order}_{thing}"
+
 def load_yaml(filename: str):
     import yaml
     # Load the config from the specified path
@@ -26,14 +29,6 @@ def generate_icosphere_file_code(polygon_structures: List[PolygonStructure], ref
     return structure_code
 
 def gzip_file(filename: str):
-    """ Compress a file using gzip and return the compressed file name.
-    
-    Args:
-        filename (str): The name of the file to compress.
-        
-    Returns:
-        str: The name of the compressed file.
-    """
     import gzip
     import shutil
     
@@ -41,6 +36,40 @@ def gzip_file(filename: str):
     with open(filename, 'rb') as f_in:
         with gzip.open(compressed_filename, 'wb') as f_out:
             shutil.copyfileobj(f_in, f_out)
+
+def mesh_to_dict(meshes: List) -> dict:
+    """
+    Convert an array of meshes to a dictionary format similar to generate_icosphere output.
+    
+    Args:
+        meshes (List): List of PyMesh mesh objects representing different refinement orders.
+        
+    Returns:
+        dict: Dictionary containing mesh data with keys for vertices, faces, and face centroids
+              for each refinement order.
+    """
+    icospheres_dict = { "vertices":[], "faces":[] }
+
+    for o, mesh in enumerate(meshes):
+        if not mesh:
+            continue
+        # Add vertices for this order
+        icospheres_dict[order(o, "vertices")] = mesh.vertices
+
+        # Add faces for this order
+        icospheres_dict[order(o, "faces")] = mesh.faces
+
+        # Calculate and add face centroids for this order
+        mesh.add_attribute("face_centroid")
+        icospheres_dict[order(o, "face_centroid")] = mesh.get_face_attribute("face_centroid")
+
+    # Convert numpy arrays to lists for JSON serialization
+    result_dict = {
+        key: (value.tolist() if isinstance(value, np.ndarray) else value) 
+        for key, value in icospheres_dict.items()
+    }
+    
+    return result_dict
 
 # CONVERSION UTILS
 def to_cartesian(lat_lon: np.ndarray) -> np.ndarray:

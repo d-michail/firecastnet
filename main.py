@@ -12,6 +12,7 @@ def main():
 
     cli = SeasfireLightningCLI(
         datamodule_class=SeasFireDataModule,
+        save_config_callback=None
     )
 
 

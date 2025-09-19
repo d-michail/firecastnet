@@ -5,5 +5,7 @@ refinement_targets:
   - target_code: "SHSA"
     refinement_order: 6
     refinement_type: "uniform"
-    buffer_factor: 400
+    buffer_factor: 200
 gzip: true
+all_layers: false
+split_layers: true

@@ -168,3 +168,5 @@ lightning_logs/
 /bin
 /share
 /lib*
+/icospheres-lam/icospheres
+/icospheres-lam/geoBoundaries*
