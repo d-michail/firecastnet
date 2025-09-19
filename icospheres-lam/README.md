@@ -3,9 +3,12 @@
 ## Setup
 
 ```Bash
-# From the root of the repository
+
 # Generate WKT csv file of each country, continent and GFED region
-python icospheres-lam/generate_wkt_csv.py
+python generate_wkt_csv.py --cube_path /path/to/seasfire_cube
+
+# Or to specify the output directory
+python generate_wkt_csv.py --csv_dir /path/to/output --cube_path /path/to/seasfire_cube
 
 # Build the Docker image
 docker build -t custom-pymesh:py3.7 -f Dockerfile .

@@ -216,7 +216,7 @@ def extract_shapefile_features(shapefile_paths, use_clustering=True):
                 feature_iso = country_to_codes.get(admin0_name, "UNK")
                 feature_full_name = f"{feature_name}, {admin0_name}" if admin0_name else feature_name
 
-                print(feature_full_name, feature_iso)
+                print(feature_full_name)
 
                 wkt_data.append({
                     "SUBUNIT": feature_full_name if feature_full_name else "Unknown",

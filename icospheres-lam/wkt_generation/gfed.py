@@ -15,30 +15,29 @@ from shapely import concave_hull
 
 from .clustering import points_clustering
 
-cube_zarr_path = "../../cube_v3.zarr"
 
-def extract_gfed_regions():
+def extract_gfed_regions(cube_path:str):
     """
     Extract GFED region information from the dataset.
     
     Returns:
         list: List of tuples containing (region_id, region_name) for all regions except OCEAN
     """
-    gfed_regions = xr.open_dataset(cube_zarr_path)["gfed_region"]
+    gfed_regions = xr.open_dataset(cube_path)["gfed_region"]
     matches = re.findall(r'(\d+)-([A-Z]+)', gfed_regions.description)
     # Extract region id and name and Remove the OCEAN region (0)
     return [(int(idx), name) for idx, name in matches][1:]
 
 
-def extract_gfed_coordinates():
+def extract_gfed_coordinates(cube_path:str):
     """
     Extract coordinate points for each GFED region from the NetCDF dataset.
     
     Returns:
         dict: Dictionary mapping region IDs to lists of (lat, lon) coordinate tuples
     """
-    gfed_regions = xr.open_dataset(cube_zarr_path)["gfed_region"]
-    gfed_areas = extract_gfed_regions()
+    gfed_regions = xr.open_dataset(cube_path)["gfed_region"]
+    gfed_areas = extract_gfed_regions(cube_path)
     print(gfed_areas)
     # Dataset resolution
     resolution = 0.25  # degrees
@@ -119,7 +118,7 @@ def create_gfed_geometry_simple(points):
     return shapely.wkt.dumps(poly)
 
 
-def process_gfed_regions(use_clustering=True, eps=0.5, min_samples=3):
+def process_gfed_regions(cube_path:str, use_clustering=True, eps=0.5, min_samples=3):
     """
     Process GFED regions and convert them to WKT geometries.
     
@@ -132,9 +131,8 @@ def process_gfed_regions(use_clustering=True, eps=0.5, min_samples=3):
         list: List of dictionaries containing GFED region data with WKT geometries
     """
     print("\nProcessing GFED regions...")
-    
-    gfed_areas = extract_gfed_regions()
-    gfed_map = extract_gfed_coordinates()
+    gfed_areas = extract_gfed_regions(cube_path)
+    gfed_map = extract_gfed_coordinates(cube_path)
     
     print("\nTransforming GFED regions to WKT geometries...")
 
