@@ -3,7 +3,6 @@
 ## Setup
 
 ```Bash
-
 # Generate WKT csv file of each country, continent and GFED region
 python generate_wkt_csv.py --cube_path /path/to/seasfire_cube
 
@@ -29,6 +28,15 @@ python ./build_icospheres.py --configs_all
 # Override the output directory for all generated files
 python ./build_icospheres.py --configs_all --outdir ./my_output_directory/
 ```
+
+## Visualize the generated icosphere file
+
+```Bash
+# Visualize the generated icosphere file
+python ./icosphere_vis.py --config /path/to/config.yaml
+```
+
+## Configuration
 
 To configure the icosphere build process, you can edit the `config.yaml` file the following structure:
 
