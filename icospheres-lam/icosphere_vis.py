@@ -96,7 +96,7 @@ if __name__ == "__main__":
     mesh_to_np(icosphere)
 
     min_order, max_order = get_minmax_order(icosphere)
-    total_orders = max_order - min_order
+    total_orders = max_order - min_order + 1
     
     if config.get("all_layers", False):
         # Visualize each refinement level separately
@@ -111,11 +111,13 @@ if __name__ == "__main__":
         )
     elif config.get("split_layers", False):
         # Visualize each refinement level separately
-        labels = [f"Refinement Order {o}" for o in range(min_order, max_order)]
-        for o in range(min_order, max_order):
+        labels = [f"Refinement Order {o}" for o in range(min_order, max_order + 1)]
+        print(labels)
+        for o in range(min_order, max_order + 1):
+            print(o, o - total_orders - 1)
             buffer_size = (o - total_orders - 1) * icosphere_structs[0].buffer_factor
             if buffer_size > 0.1:
-                labels[total_orders - o] += f" (Buffer Size: {buffer_size:.2f} km)"
+                labels[o - total_orders - 1] += f" (Buffer Size: {buffer_size:.2f} km)"
         if icosphere_structs[0].refinement_type == "uniform":
             d2.visualize_icosphere_layered_latlon_2d(
                 icosphere,
@@ -132,7 +134,7 @@ if __name__ == "__main__":
         d2.visualize_multiple_meshes_latlon_2d(
             meshes=[
             {"vertices": icosphere[order(o, "vertices")], "faces": icosphere[order(o, "faces")]}
-            for o in range(min_order, max_order)
+            for o in range(min_order, max_order + 1)
             ],
             colors=["#da9881", "#e16b43", "#e2420b"],
             labels=labels,
