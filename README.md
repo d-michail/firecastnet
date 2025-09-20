@@ -43,19 +43,24 @@ pip install einops scikit-learn
 pip install -U 'jsonargparse[signatures]>=4.27.7'
 ```
 
+## Icospheres
+
+Folder `icospheres/` contains the GraphCast icospheres. Folder `icospheres-lam` contains tools for local
+area modelling icospheres where some regions are denser while the rest of the world is sparser.
+
 ### Download the data
 
 Download the [SeasFire dataset](https://zenodo.org/record/8055879) from zenodo. Note it is 44GB.
 
 Unzip the dataset to a folder of your choice. Reference the dataset from the config file.
 
-## Tools 
+## Tools
 
-A few helper scripts can be found in this repository. 
- 
- - `inference_fcn.py`: Given a cube and a FireCastNet model checkpoint, perform inference and a cube containing the predictions as a variable.
- - `compute_metrics.py`: Given a cube with a variable with predictions (for classification), output global and per GFED region metrics.
- - `compute_cls_baselines.py`: Compute classification baselines and output them as variables in a cube.
+A few helper scripts can be found in this repository.
+
+- `inference_fcn.py`: Given a cube and a FireCastNet model checkpoint, perform inference and produce a cube containing the predictions as a variable.
+- `compute_metrics.py`: Given a cube with a variable with predictions (for classification), output global and per GFED region metrics.
+- `compute_cls_baselines.py`: Compute classification baselines and output them as variables in a cube.
 
 ## Acknowledgements
 

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 
 def argparse_setup():
@@ -10,7 +12,7 @@ def argparse_setup():
         help="Path to the configuration file."
     )
     parser.add_argument(
-        "--configs_all", 
+        "--configs-all", 
         action="store_true",
         default=False,
         help="If set, process all config files in the ./configs/ directory."

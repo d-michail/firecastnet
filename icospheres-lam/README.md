@@ -4,16 +4,16 @@
 
 ```Bash
 # Generate WKT csv file of each country, continent and GFED region
-python generate_wkt_csv.py --cube_path /path/to/seasfire_cube
+python generate_wkt_csv.py --cube-path /path/to/seasfire_cube
 
 # Or to specify the output directory
-python generate_wkt_csv.py --csv_dir /path/to/output --cube_path /path/to/seasfire_cube
+python generate_wkt_csv.py --csv-dir /path/to/output --cube-path /path/to/seasfire_cube
 
 # Build the Docker image
 docker build -t custom-pymesh:py3.7 -f Dockerfile .
 ```
 
-## Build the icosphere with from a config file
+## Build the icosphere from a config file
 
 ```Bash
 # Build the icosphere using the default config file
@@ -23,10 +23,10 @@ python ./build_icospheres.py
 python ./build_icospheres.py --config config.yaml
 
 # Process all config files in the ./configs/ directory
-python ./build_icospheres.py --configs_all 
+python ./build_icospheres.py --configs-all 
 
 # Override the output directory for all generated files
-python ./build_icospheres.py --configs_all --outdir ./my_output_directory/
+python ./build_icospheres.py --configs-all --outdir ./my_output_directory/
 ```
 
 ## Visualize the generated icosphere file

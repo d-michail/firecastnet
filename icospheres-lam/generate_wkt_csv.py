@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import pandas as pd
 import os
@@ -52,13 +54,13 @@ Examples:
         help="Skip DBSCAN clustering for GFED regions."
     )
     args_parser.add_argument(
-        "--cube_path",
+        "--cube-path",
         type=str,
         required=True,
         help="Required path to the SeasFire cube directory."
     )
     args_parser.add_argument(
-        "--csv_dir",
+        "--csv-dir",
         type=str,
         default="./csv",
         help="Output directory for CSV file."
