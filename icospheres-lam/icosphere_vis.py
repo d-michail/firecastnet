@@ -1,10 +1,9 @@
 import json
 from typing import List
-import numpy as np
 import gzip
 
-from icosphere_generation.utils import load_yaml, order
 from visuals import d2, d3
+from icosphere_generation.utils import load_yaml, order
 from icosphere_generation.PolygonStructure import PolygonStructure
 
 def generate_icosphere_file_code(polygon_structures: List[PolygonStructure], ref_order: int, \
@@ -25,6 +24,7 @@ def generate_icosphere_file_code(polygon_structures: List[PolygonStructure], ref
     return structure_code
 
 def mesh_to_np(mesh):
+    import numpy as np
     min_order, _ = get_minmax_order(mesh)
 
     while order(min_order, "vertices") in mesh:
@@ -52,14 +52,12 @@ def mesh_to_np(mesh):
         min_order += 1
 
 
-def get_minmax_order(icosphere):
-    min_order = 0
-    while order(min_order, "vertices") not in icosphere:
-        min_order += 1
-    max_order = min_order
-    while order(max_order, "vertices") in icosphere:
-        max_order += 1
-    return min_order, max_order
+def get_minmax_order(icosphere:dict):
+    vertex_keys = [int(key[6]) for key in icosphere.keys() if "_vertices" in key]
+    if len(vertex_keys) == 0:
+        raise ValueError("No order_N_vertices field found in icospheres file")
+    sorted_orders = sorted(vertex_keys)
+    return sorted_orders[0], sorted_orders[-1]
 
 def arg_parse():
     import argparse
@@ -98,15 +96,10 @@ if __name__ == "__main__":
     mesh_to_np(icosphere)
 
     min_order, max_order = get_minmax_order(icosphere)
-    total_orders = max_order - min_order
+    total_orders = max_order - min_order + 1
     
-    # Visualization settings
-    show = True
-    show_3d = True
-    show_2d = True
-
-    # Visualize each refinement level separately
     if config.get("all_layers", False):
+        # Visualize each refinement level separately
         d3.visualize_icosphere_layered_3d(
             icosphere, 
             max_columns=4, 
@@ -117,12 +110,14 @@ if __name__ == "__main__":
             title=f"Icosphere Mesh Progression - SHSA GFED Region",
         )
     elif config.get("split_layers", False):
-        print(icosphere)
-        labels = [f"Refinement Order {o}" for o in range(min_order, max_order)]
-        for o in range(min_order, max_order):
+        # Visualize each refinement level separately
+        labels = [f"Refinement Order {o}" for o in range(min_order, max_order + 1)]
+        print(labels)
+        for o in range(min_order, max_order + 1):
+            print(o, o - total_orders - 1)
             buffer_size = (o - total_orders - 1) * icosphere_structs[0].buffer_factor
             if buffer_size > 0.1:
-                labels[total_orders - o] += f" (Buffer Size: {buffer_size:.2f} km)"
+                labels[o - total_orders - 1] += f" (Buffer Size: {buffer_size:.2f} km)"
         if icosphere_structs[0].refinement_type == "uniform":
             d2.visualize_icosphere_layered_latlon_2d(
                 icosphere,
@@ -139,7 +134,7 @@ if __name__ == "__main__":
         d2.visualize_multiple_meshes_latlon_2d(
             meshes=[
             {"vertices": icosphere[order(o, "vertices")], "faces": icosphere[order(o, "faces")]}
-            for o in range(min_order, max_order)
+            for o in range(min_order, max_order + 1)
             ],
             colors=["#da9881", "#e16b43", "#e2420b"],
             labels=labels,
@@ -150,7 +145,8 @@ if __name__ == "__main__":
             crop_bounds={"lat": [-80, 20], "lon": [-110, -10]},
             # save_path="../thesis/figures/icosphere_target_layers_stacked_latlon.png"
         )
-    elif show_3d:
+    else:
+        # Visualize the entire icosphere mesh in 3D and 2D
         d3.visualize_icosphere_layered_3d(
             icosphere, 
             max_columns=1, 

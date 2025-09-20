@@ -24,7 +24,7 @@ def generate_and_save_icospheres(
     try:
         import pymesh
     except ImportError:
-        Warning("pymesh is not installed. Please install it to use icosphere.")
+        Warning("Pymesh is not installed. Please install it to generate icospheres.")
     import json
 
     """Generate icospheres from level 0 to 6 (inclusive) and save them to a json file.
