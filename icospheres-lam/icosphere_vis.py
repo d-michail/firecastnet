@@ -3,6 +3,7 @@
 import json
 from typing import List
 import gzip
+import os
 
 from visuals import d2, d3
 from icosphere_generation.utils import load_yaml, order
@@ -70,10 +71,17 @@ def arg_parse():
         default="./configs/config.yaml",
         help="Path to the configuration YAML file.",
     )
+    parser.add_argument(
+        "--icosphere-dir",
+        default="./icospheres/",
+        dest="icosphere_dir",
+        help="Directory containing the icosphere files."
+    )    
     return parser.parse_args()
 
 if __name__ == "__main__":
-    config = load_yaml(arg_parse().config)
+    args = arg_parse()
+    config = load_yaml(args.config)
     all_layers = config.get("all_layers", False)
     split_layers = config.get("split_layers", False)
 
@@ -87,7 +95,7 @@ if __name__ == "__main__":
         mesh_layers=all_layers,
         split_layers=split_layers
     )
-    file_path = f"./icospheres/{icosphere_file_code}.json"
+    file_path = os.path.join(args.icosphere_dir, f"{icosphere_file_code}.json")
     if config.get("gzip", False):
         file_path += ".gz"
     
