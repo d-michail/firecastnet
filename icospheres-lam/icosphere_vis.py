@@ -113,7 +113,7 @@ if __name__ == "__main__":
         d3.visualize_icosphere_layered_3d(
             icosphere, 
             max_columns=4, 
-            colors=["#e16b43"] * max_order,
+            colors=["#e16b43"] * (max_order + 1),
             rotation=(-26.5, -57.5, 0),
             alpha=0.825,
             zoom=[1, 1, 1, 1, 1.15, 1.3, 1.45],
