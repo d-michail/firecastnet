@@ -98,10 +98,10 @@ data:
   - tp
   - pop_dens
   target_var: gwis_ba
-  target_shift: 16
+  target_shift: 4
   target_var_per_area: false
   target_var_log_process: false
-  timeseries_weeks: 12
+  timeseries_len: 12
   lat_dim: 64 
   lon_dim: 64
   lat_dim_overlap: null

@@ -6,41 +6,32 @@ trainer:
   devices: auto
   num_nodes: 1
   precision: null
-  default_root_dir: ./lightning_logs/local_firecastnet/NHAF
   logger:
-  - class_path: lightning.pytorch.loggers.WandbLogger
+  - class_path: lightning.pytorch.loggers.CSVLogger
     init_args:
-      project: local_firecastnet
-      log_model: all
-      save_dir: ./lightning_logs
+      save_dir: './'
   callbacks:
   - class_path: lightning.pytorch.callbacks.ModelSummary
-    init_args: 
+    init_args:
       max_depth: 3
   - class_path: lightning.pytorch.callbacks.LearningRateMonitor
     init_args:
       logging_interval: 'epoch'
   - class_path: lightning.pytorch.callbacks.ModelCheckpoint
     init_args:
-      dirpath: ./lightning_logs/local_firecastnet/NHAF/checkpoints
-      filename: last
       save_last: true
-      save_top_k: 0       # we’re only using this one to keep track of last
   - class_path: lightning.pytorch.callbacks.ModelCheckpoint
     init_args:
-      dirpath: ./lightning_logs/local_firecastnet/NHAF/checkpoints
-      filename: '{epoch:03d}-{val_auprc:.4f}'
-      monitor: val_auprc
-      mode: max
-      save_top_k: 1
-  - class_path: seasfire.callbacks.DGLGraphToDevice
+      mode: 'max'
+      monitor: 'val_auprc'
+      filename:  '{epoch:03d}-{val_loss:.4f}-{val_auprc:.3f}'
   fast_dev_run: false
   max_epochs: 50
   min_epochs: null
   max_steps: -1
   min_steps: null
-  limit_train_batches: null
   max_time: null
+  limit_train_batches: null
   limit_val_batches: null
   limit_test_batches: null
   limit_predict_batches: null
@@ -65,21 +56,23 @@ trainer:
   plugins: null
   sync_batchnorm: false
   reload_dataloaders_every_n_epochs: 0
+  default_root_dir: null
 model:
-  class_path: seasfire.firecastnet_lit.FireCastNetLit
+  class_path: seasfire.sfno_lit.SFNOLit
   init_args:
-    icospheres_graph_path: icospheres-lam/icospheres/icosphere_s3_NHAF_6u.json.gz
     sp_res: 0.250
     max_lat: 89.875
     min_lat: -89.875
     max_lon: 179.875
     min_lon: -179.875
     lat_lon_static_data: true
-    timeseries_len: 24
+    timeseries_len: 12
+    # CubeEmbedder: 3-D conv collapses time and downsamples space 4x
+    # Input  [C, 12, 720, 1440] → output [embed_cube_dim, 1, 180, 360]
     embed_cube: true
     embed_cube_width: 4
     embed_cube_height: 4
-    embed_cube_time: 24
+    embed_cube_time: 12
     embed_cube_dim: 64
     embed_cube_layer_norm: true
     embed_cube_vit_enable: false
@@ -91,56 +84,54 @@ model:
     embed_cube_ltae_enable: false
     embed_cube_ltae_num_heads: 4
     embed_cube_ltae_d_k: 16
-    embed_cube_sp_res: 1.0
-    embed_cube_max_lat: 89.5
-    embed_cube_min_lat: -89.5
-    embed_cube_max_lon: 179.5
-    embed_cube_min_lon: -179.5
     input_dim_grid_nodes: 11
+    # output_dim_grid_nodes = embed_cube_width^2 for PixelShuffle → 1 output channel
     output_dim_grid_nodes: 16
-    input_dim_mesh_nodes: 3
-    input_dim_edges: 4
-    processor_layers: 12
-    hidden_layers: 1
-    hidden_dim: 64
-    aggregation: sum
-    norm_type: LayerNorm
-    do_concat_trick: false
+    # SFNO operates at 180x360 (1°) with embed_cube_dim=64 input channels
+    sfno_embed_dim: 64
+    sfno_num_layers: 4
+    sfno_scale_factor: 3
+    sfno_hard_thresholding_fraction: 1.0
+    sfno_normalization_layer: instance_norm
+    sfno_use_mlp: true
+    sfno_mlp_ratio: 2.0
+    # pos_embed options: "none", "sequence", "spectral", "learnable lat", "learnable latlon"
+    sfno_pos_embed: "learnable latlon"    
+    task: classification
     regression_loss: mse
-    cube_path: "../cube_v3.zarr"
-    gfed_region_enable_loss_weighting: true
+    cube_path: "cube.zarr"
+    gfed_region_enable_loss_weighting: false
     gfed_region_var_name: "gfed_region"
-    gfed_region_weights: 
+    gfed_region_weights:
       OCEAN: 0.0
-      BONA: 0.0
-      TENA: 0.0
-      CEAM: 0.0
-      NHSA: 0.0
-      NHAF: 1.0
-      EURO: 0.0
-      MIDE: 0.0
-      SHSA: 0.0
-      SHAF: 0.0
-      BOAS: 0.0
-      CEAS: 0.0
-      SEAS: 0.0
-      EQAS: 0.0
-      AUST: 0.0
-    val_gfed_regions:
-    - NHAF
-    test_gfed_regions:
-    - NHAF
+      BONA: 4.68
+      TENA: 3.92
+      CEAM: 3.85
+      NHSA: 3.64
+      SHSA: 1.84
+      EURO: 4.73
+      MIDE: 4.63
+      NHAF: 1.57
+      SHAF: 1.20
+      BOAS: 3.19
+      CEAS: 2.47
+      SEAS: 2.87
+      EQAS: 4.52
+      AUST: 3.03
+    val_gfed_regions: []
+    test_gfed_regions: []
     lsm_filter_enable: true
     lsm_var_name: "lsm"
     lsm_threshold: 0.1
     lr: 0.001
     weight_decay: 0.00000001
     optimizer_apex: false
-    optimizer_fused: true
+    optimizer_fused: false
+    max_epochs: 50
     display_model_example: false
     display_model_example_precision: null
 data:
-  cube_path: "../cube_v3.zarr"
+  cube_path: "cube.zarr"
   input_vars:
   - mslp
   - tp
@@ -156,7 +147,7 @@ data:
   - lsm
   generate_only_positive_samples: true
   oci_enabled: false
-  oci_input_vars: 
+  oci_input_vars:
   - oci_censo
   - oci_ea
   - oci_epo
@@ -168,22 +159,22 @@ data:
   - oci_soi
   - oci_wp
   oci_lag: 14
-  log_preprocess_input_vars: []
-  # - tp
-  # - pop_dens
+  log_preprocess_input_vars:
+  - tp
+  - pop_dens
   target_var: gwis_ba
   target_shift: 4
   target_var_per_area: false
   target_var_log_process: false
-  timeseries_len: 24
-  lat_dim: null 
+  timeseries_len: 12
+  lat_dim: null
   lon_dim: null
   lat_dim_overlap: null
   lon_dim_overlap: null
   time_dim_overlap: null
   task: classification
   batch_size: 1
-  num_workers: 2
+  num_workers: 8
   pin_memory: false
   load_cube_in_memory: false
   train_random_sample: null

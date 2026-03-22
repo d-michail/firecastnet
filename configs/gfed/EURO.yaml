@@ -175,7 +175,7 @@ data:
   target_shift: 4
   target_var_per_area: false
   target_var_log_process: false
-  timeseries_weeks: 24
+  timeseries_len: 24
   lat_dim: null 
   lon_dim: null
   lat_dim_overlap: null

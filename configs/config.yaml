@@ -163,7 +163,7 @@ data:
   - tp
   - pop_dens
   target_var: gwis_ba
-  target_shift: 16
+  target_shift: 4
   target_var_per_area: false
   target_var_log_process: false
   timeseries_weeks: 12

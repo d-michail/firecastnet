@@ -37,7 +37,7 @@ class SeasFireDataModule(L.LightningDataModule):
         target_shift=1,
         target_var_per_area=False,
         target_var_log_process=False,
-        timeseries_weeks=1,
+        timeseries_len=1,
         lat_dim=None,
         lon_dim=None,
         lat_dim_overlap: int = None,
@@ -95,7 +95,7 @@ class SeasFireDataModule(L.LightningDataModule):
 
         self._time_dim_overlap = time_dim_overlap
         if self._time_dim_overlap is None:
-            logger.info("Using time overlap {} in samples".format(timeseries_weeks - 1))
+            logger.info("Using time overlap {} in samples".format(timeseries_len - 1))
         else:
             logger.info(
                 "Using time overlap {} in samples".format(self._time_dim_overlap)
@@ -154,11 +154,13 @@ class SeasFireDataModule(L.LightningDataModule):
             logger.info(
                 "Expanding time dimension on static variable = {}.".format(static_v)
             )
-            self._cube[static_v] = self._cube[static_v].expand_dims(
-                dim={"time": self._cube.time}, axis=0
-            )
+            if "time" not in self._cube[static_v].dims:
+                logger.info(f"Static var {static_v} has no time dimension, expanding.")
+                self._cube[static_v] = self._cube[static_v].expand_dims(
+                    dim={"time": self._cube.time}, axis=0
+                )            
 
-        self._timeseries_weeks = timeseries_weeks
+        self._timeseries_len = timeseries_len
 
         self._target_var = target_var
         self._target_shift = target_shift
@@ -185,7 +187,7 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._target_shift,
                 self._target_var_per_area,
                 self._target_var_log_process,
-                self._timeseries_weeks,
+                self._timeseries_len,
                 "train",
                 self._lat_dim,
                 self._lon_dim,
@@ -214,7 +216,7 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._target_shift,
                 self._target_var_per_area,
                 self._target_var_log_process,
-                self._timeseries_weeks,
+                self._timeseries_len,
                 "val",
                 self._lat_dim,
                 self._lon_dim,
@@ -273,7 +275,7 @@ class SeasFireDataModule(L.LightningDataModule):
                 self._target_shift,
                 self._target_var_per_area,
                 self._target_var_log_process,
-                self._timeseries_weeks,
+                self._timeseries_len,
                 "test",
                 self._lat_dim,
                 self._lon_dim,
@@ -374,7 +376,7 @@ def sample_dataset(
     target_shift,
     target_var_per_area,
     target_var_log_process,
-    timeseries_weeks,
+    timeseries_len,
     split,
     dim_lat,
     dim_lon,
@@ -441,8 +443,8 @@ def sample_dataset(
 
     input_overlap = {}
     if dim_time_overlap is None:
-        if timeseries_weeks - 1 > 0:
-            input_overlap["time"] = timeseries_weeks - 1
+        if timeseries_len - 1 > 0:
+            input_overlap["time"] = timeseries_len - 1
     else:
         input_overlap["time"] = dim_time_overlap
     if dim_lat_overlap is not None:
@@ -458,7 +460,7 @@ def sample_dataset(
         input_dims={
             "longitude": dim_lon,
             "latitude": dim_lat,
-            "time": timeseries_weeks,
+            "time": timeseries_len,
         },
         input_overlap=input_overlap,
     )
