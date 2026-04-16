@@ -25,8 +25,9 @@ trainer:
       mode: 'max'
       monitor: 'val_auprc'
       filename:  '{epoch:03d}-{val_loss:.4f}-{val_auprc:.3f}'
+  - class_path: seasfire.callbacks.DGLGraphToDevice
   fast_dev_run: false
-  max_epochs: 50
+  max_epochs: 100
   min_epochs: null
   max_steps: -1
   min_steps: null
@@ -66,7 +67,7 @@ model:
     max_lon: 179.875
     min_lon: -179.875
     lat_lon_static_data: true
-    timeseries_len: 12
+    timeseries_len: 6
     input_dim_grid_nodes: 11
     # output_dim_grid_nodes = embed_cube_width * embed_cube_height * true_output_dim
     # e.g. 4*4*1 = 16 for single-channel fire prediction via PixelShuffle
@@ -104,7 +105,7 @@ model:
     do_concat_trick: false
     task: classification
     regression_loss: mse
-    cube_path: "cube.zarr"
+    cube_path: "../seasfire_v0.4.zarr"
     gfed_region_enable_loss_weighting: false
     gfed_region_var_name: "gfed_region"
     gfed_region_weights:
@@ -132,11 +133,11 @@ model:
     weight_decay: 0.00000001
     optimizer_apex: false
     optimizer_fused: false
-    max_epochs: 50
+    max_epochs: 100
     display_model_example: false
     display_model_example_precision: null
 data:
-  cube_path: "cube.zarr"
+  cube_path: "../seasfire_v0.4.zarr"
   input_vars:
   - mslp
   - tp
@@ -171,7 +172,7 @@ data:
   target_shift: 4
   target_var_per_area: false
   target_var_log_process: false
-  timeseries_len: 12
+  timeseries_len: 6
   lat_dim: null
   lon_dim: null
   lat_dim_overlap: null
