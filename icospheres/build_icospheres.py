@@ -71,6 +71,7 @@ if __name__ == "__main__":
         generate_and_save_icospheres("icospheres_1_3_5.json", [1, 3, 5])
         generate_and_save_icospheres("icospheres_2_3_4.json", [2, 3, 4])
         generate_and_save_icospheres("icospheres_2_3_4_5.json", [2, 3, 4, 5])
+        generate_and_save_icospheres("icospheres_3_4_5_6.json", [3, 4, 5, 6])
     else:
         # Running outside Docker - run the script inside Docker container
         import sys
